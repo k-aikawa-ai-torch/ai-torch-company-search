@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI torch 企業検索</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+.header{background:#1a1a1a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:16px;font-weight:500;letter-spacing:0.02em}
+.header .badge{background:#3a3a3a;font-size:12px;padding:3px 8px;border-radius:4px;color:#aaa}
+.main{max-width:900px;margin:0 auto;padding:16px}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:14px;color:#1a1a1a}
+.search-bar input:focus{outline:none;border-color:#888}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.filters select{height:34px;padding:0 10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;color:#1a1a1a}
+.score-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
+.score-filter select{height:30px;font-size:12px;padding:0 6px}
+.tag-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tag{padding:5px 12px;border:1px solid #ddd;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#555;white-space:nowrap;transition:all 0.15s;user-select:none}
+.tag.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.count{font-size:13px;color:#888}
+.sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
+.sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff}
+.list{display:flex;flex-direction:column;gap:6px}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px 16px;cursor:pointer;transition:border-color 0.15s}
+.card:hover{border-color:#bbb}
+.card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.name{font-size:14px;font-weight:500;flex:1}
+.tier-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.t1{background:#eeedfe;color:#3c3489}
+.t2{background:#e1f5ee;color:#085041}
+.t3{background:#f1efe8;color:#444441}
+.tn{background:#f1f1f1;color:#888}
+.stopped-badge{padding:2px 8px;border-radius:10px;font-size:11px;background:#feecec;color:#991a1a}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.industry{font-size:12px;color:#888}
+.pill{padding:2px 8px;border-radius:8px;font-size:11px;background:#f5f5f0;color:#666}
+.scores{display:flex;gap:14px;flex-wrap:wrap}
+.score-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.score-label{font-size:10px;color:#aaa;text-align:center}
+.score-bar-wrap{width:32px;height:4px;background:#eee;border-radius:2px;overflow:hidden}
+.score-bar{height:4px;border-radius:2px;background:#4a7c59}
+.score-num{font-size:11px;color:#666}
+.detail{display:none;margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px}
+.card.open .detail{display:block}
+.bool-pill{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;background:#f0f7f2;color:#2d6a4f;margin:2px}
+.roles-text{font-size:12px;color:#666;margin-top:6px}
+.tech-text{font-size:12px;color:#999;margin-top:3px}
+.area-text{font-size:12px;color:#666;margin-top:3px}
+.loading{text-align:center;padding:40px;color:#888;font-size:14px}
+.error{text-align:center;padding:40px;color:#c00;font-size:14px}
+.update-info{font-size:11px;color:#aaa;text-align:right;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>AI torch 企業検索</h1>
+  <span class="badge" id="header-count">読み込み中…</span>
+</div>
+<div class="main">
+  <div class="update-info" id="update-info"></div>
+  <div class="search-bar">
+    <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
+  </div>
+  <div class="filters">
+    <select id="tier" onchange="render()">
+      <option value="">全Tier</option>
+      <option value="1">Tier 1</option>
+      <option value="2">Tier 2</option>
+      <option value="3">Tier 3</option>
+    </select>
+    <select id="industry" onchange="render()"></select>
+    <select id="role" onchange="render()"></select>
+    <div class="score-filter">
+      <span>年収≥</span>
+      <select id="min_salary" onchange="render()">
+        <option value="0">-</option>
+        <option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+      </select>
+      <span>WLB≥</span>
+      <select id="min_wlb" onchange="render()">
+        <option value="0">-</option>
+        <option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+      </select>
+      <span>技術力≥</span>
+      <select id="min_tech" onchange="render()">
+        <option value="0">-</option>
+        <option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+      </select>
+    </div>
+  </div>
+  <div class="tag-filters">
+    <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
+    <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
+    <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
+    <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
+    <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
+    <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
+    <span class="tag" data-key="aikawa" onclick="toggleTag(this)">相川PKG</span>
+    <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
+  </div>
+  <div class="top-bar">
+    <span class="count" id="count"></span>
+    <div class="sort-wrap">
+      <label>並び替え:</label>
+      <select id="sort" onchange="render()">
+        <option value="offer">承諾率スコア</option>
+        <option value="salary">年収</option>
+        <option value="wlb">WLB</option>
+        <option value="tech">技術力</option>
+        <option value="name">企業名</option>
+      </select>
+    </div>
+  </div>
+  <div id="list"><div class="loading">データを読み込み中…</div></div>
+</div>
+<script>
+let DATA = [];
+let activeTags = new Set();
+
+// ★ここを自分のGitHubユーザー名に合わせて変更済み
+const DATA_URL = 'https://raw.githubusercontent.com/k-aikawa-ai-torch/ai-torch-company-search/main/companies.json';
+
+async function loadData() {
+  try {
+    const res = await fetch(DATA_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('fetch failed');
+    const json = await res.json();
+    DATA = json.companies || [];
+    const updated = json.updated_at ? new Date(json.updated_at).toLocaleString('ja-JP') : '';
+    document.getElementById('update-info').textContent = updated ? `最終更新: ${updated}` : '';
+    document.getElementById('header-count').textContent = DATA.length + '社';
+    initSelects();
+    render();
+  } catch(e) {
+    document.getElementById('list').innerHTML = '<div class="error">データの読み込みに失敗しました。<br>companies.jsonがリポジトリに存在するか確認してください。</div>';
+  }
+}
+
+function initSelects() {
+  const allIndustries = [...new Set(DATA.flatMap(c => c.industry.split(/,\s*/)))].filter(Boolean).sort();
+  const allRoles = [...new Set(DATA.flatMap(c => (c.roles||'').split(/,\s*/)))].filter(Boolean).sort();
+  const indSel = document.getElementById('industry');
+  const roleSel = document.getElementById('role');
+  indSel.innerHTML = '<option value="">全業界</option>';
+  roleSel.innerHTML = '<option value="">全職種</option>';
+  allIndustries.forEach(i => { const o = document.createElement('option'); o.value = i; o.textContent = i; indSel.appendChild(o); });
+  allRoles.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roleSel.appendChild(o); });
+}
+
+function toggleTag(el) {
+  const k = el.dataset.key;
+  activeTags.has(k) ? activeTags.delete(k) : activeTags.add(k);
+  el.classList.toggle('on');
+  render();
+}
+
+function scoreBar(val) {
+  if (val === null || val === undefined) return '<span style="font-size:11px;color:#ccc">-</span>';
+  const pct = Math.round((val / 10) * 100);
+  return `<div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%"></div></div><span class="score-num">${val}</span>`;
+}
+
+function render() {
+  const q = (document.getElementById('q').value || '').toLowerCase();
+  const tier = document.getElementById('tier').value;
+  const ind = document.getElementById('industry').value;
+  const role = document.getElementById('role').value;
+  const minSalary = +document.getElementById('min_salary').value;
+  const minWlb = +document.getElementById('min_wlb').value;
+  const minTech = +document.getElementById('min_tech').value;
+  const sort = document.getElementById('sort').value;
+  const showStopped = activeTags.has('stopped');
+
+  let res = DATA.filter(c => {
+    if (!showStopped && c.stopped) return false;
+    if (tier && c.tier !== tier) return false;
+    if (ind && !c.industry.split(/,\s*/).includes(ind)) return false;
+    if (role && !(c.roles||'').split(/,\s*/).includes(role)) return false;
+    if (minSalary && (c.score_salary === null || c.score_salary < minSalary)) return false;
+    if (minWlb && (c.score_wlb === null || c.score_wlb < minWlb)) return false;
+    if (minTech && (c.score_tech === null || c.score_tech < minTech)) return false;
+    for (const k of activeTags) {
+      if (k === 'stopped') continue;
+      if (!c[k]) return false;
+    }
+    if (q && !c.name.toLowerCase().includes(q) && !(c.tech||'').toLowerCase().includes(q) && !(c.roles||'').toLowerCase().includes(q) && !c.industry.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  res.sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
+    const key = {offer:'score_offer',salary:'score_salary',wlb:'score_wlb',tech:'score_tech'}[sort];
+    return (b[key]||0) - (a[key]||0);
+  });
+
+  document.getElementById('count').textContent = res.length + '社';
+
+  const list = document.getElementById('list');
+  if (res.length === 0) { list.innerHTML = '<div class="loading">該当する企業がありません</div>'; return; }
+
+  list.innerHTML = res.map(c => {
+    const tb = c.tier==='1'?'t1':c.tier==='2'?'t2':c.tier==='3'?'t3':'tn';
+    const tierLabel = c.tier ? `Tier ${c.tier}` : '未分類';
+    const bools = [];
+    if(c.remote) bools.push('フルリモ');
+    if(c.global) bools.push('グローバル');
+    if(c.ai) bools.push('AI');
+    if(c.feeup) bools.push('FeeUP');
+    if(c.megaben) bools.push('メガベン');
+    if(c.senior) bools.push('50代可');
+    if(c.aikawa) bools.push('相川PKG');
+    return `<div class="card" onclick="this.classList.toggle('open')">
+      <div class="card-top">
+        <span class="name">${c.name}</span>
+        <span class="tier-badge ${tb}">${tierLabel}</span>
+        ${c.stopped ? '<span class="stopped-badge">採用停止</span>' : ''}
+      </div>
+      <div class="card-meta">
+        <span class="industry">${c.industry}</span>
+        ${c.acceptance_rate ? `<span class="pill">承諾率 ${c.acceptance_rate}</span>` : ''}
+      </div>
+      <div class="scores">
+        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社会貢献',c.score_social]].map(([l,v]) =>
+          `<div class="score-item"><span class="score-label">${l}</span>${scoreBar(v)}</div>`
+        ).join('')}
+      </div>
+      <div class="detail">
+        ${bools.length ? `<div style="margin-bottom:6px">${bools.map(b=>`<span class="bool-pill">${b}</span>`).join('')}</div>` : ''}
+        ${c.roles ? `<div class="roles-text">職種: ${c.roles}</div>` : ''}
+        ${c.tech ? `<div class="tech-text">技術: ${c.tech}</div>` : ''}
+        ${c.area ? `<div class="area-text">エリア: ${c.area}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+loadData();
+</script>
+</body>
+</html>
