@@ -4,10 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI torch 企業検索</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+
+/* ロック画面 */
+#lock-screen{position:fixed;inset:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#fff;border-radius:12px;padding:36px 40px;width:320px;text-align:center}
+#lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
+#lock-box p{font-size:13px;color:#888;margin-bottom:20px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;text-align:center;letter-spacing:0.1em;margin-bottom:10px}
+#lock-box input:focus{outline:none;border-color:#888}
+#lock-box button{width:100%;height:40px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+#lock-box button:hover{background:#333}
+#lock-error{color:#c00;font-size:12px;margin-top:8px;min-height:18px}
+
+/* メイン */
+#app{display:none}
 .header{background:#1a1a1a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px}
 .header h1{font-size:16px;font-weight:500;letter-spacing:0.02em}
 .header .badge{background:#3a3a3a;font-size:12px;padding:3px 8px;border-radius:4px;color:#aaa}
@@ -58,76 +71,118 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sa
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>AI torch 企業検索</h1>
-  <span class="badge" id="header-count">読み込み中…</span>
+
+<!-- ロック画面 -->
+<div id="lock-screen">
+  <div id="lock-box">
+    <h2>AI torch 企業検索</h2>
+    <p>パスワードを入力してください</p>
+    <input type="password" id="pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()">ログイン</button>
+    <div id="lock-error"></div>
+  </div>
 </div>
-<div class="main">
-  <div class="update-info" id="update-info"></div>
-  <div class="search-bar">
-    <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
+
+<!-- メインアプリ -->
+<div id="app">
+  <div class="header">
+    <h1>AI torch 企業検索</h1>
+    <span class="badge" id="header-count">読み込み中…</span>
   </div>
-  <div class="filters">
-    <select id="tier" onchange="render()">
-      <option value="">全Tier</option>
-      <option value="1">Tier 1</option>
-      <option value="2">Tier 2</option>
-      <option value="3">Tier 3</option>
-    </select>
-    <select id="industry" onchange="render()"></select>
-    <select id="role" onchange="render()"></select>
-    <div class="score-filter">
-      <span>年収≥</span>
-      <select id="min_salary" onchange="render()">
-        <option value="0">-</option>
-        <option value="5">5</option><option value="6">6</option>
-        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-      </select>
-      <span>WLB≥</span>
-      <select id="min_wlb" onchange="render()">
-        <option value="0">-</option>
-        <option value="5">5</option><option value="6">6</option>
-        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-      </select>
-      <span>技術力≥</span>
-      <select id="min_tech" onchange="render()">
-        <option value="0">-</option>
-        <option value="5">5</option><option value="6">6</option>
-        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-      </select>
+  <div class="main">
+    <div class="update-info" id="update-info"></div>
+    <div class="search-bar">
+      <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
     </div>
-  </div>
-  <div class="tag-filters">
-    <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
-    <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
-    <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
-    <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
-    <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
-    <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
-    <span class="tag" data-key="aikawa" onclick="toggleTag(this)">相川PKG</span>
-    <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
-  </div>
-  <div class="top-bar">
-    <span class="count" id="count"></span>
-    <div class="sort-wrap">
-      <label>並び替え:</label>
-      <select id="sort" onchange="render()">
-        <option value="offer">承諾率スコア</option>
-        <option value="salary">年収</option>
-        <option value="wlb">WLB</option>
-        <option value="tech">技術力</option>
-        <option value="name">企業名</option>
+    <div class="filters">
+      <select id="tier" onchange="render()">
+        <option value="">全Tier</option>
+        <option value="1">Tier 1</option>
+        <option value="2">Tier 2</option>
+        <option value="3">Tier 3</option>
       </select>
+      <select id="industry" onchange="render()"></select>
+      <select id="role" onchange="render()"></select>
+      <div class="score-filter">
+        <span>年収≥</span>
+        <select id="min_salary" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+        <span>WLB≥</span>
+        <select id="min_wlb" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+        <span>技術力≥</span>
+        <select id="min_tech" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+      </div>
     </div>
+    <div class="tag-filters">
+      <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
+      <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
+      <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
+      <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
+      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
+      <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
+      <span class="tag" data-key="aikawa" onclick="toggleTag(this)">相川PKG</span>
+      <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
+    </div>
+    <div class="top-bar">
+      <span class="count" id="count"></span>
+      <div class="sort-wrap">
+        <label>並び替え:</label>
+        <select id="sort" onchange="render()">
+          <option value="offer">承諾率スコア</option>
+          <option value="salary">年収</option>
+          <option value="wlb">WLB</option>
+          <option value="tech">技術力</option>
+          <option value="name">企業名</option>
+        </select>
+      </div>
+    </div>
+    <div id="list"><div class="loading">データを読み込み中…</div></div>
   </div>
-  <div id="list"><div class="loading">データを読み込み中…</div></div>
 </div>
+
 <script>
+// ★パスワードをここで設定（変更する場合はこの1行だけ書き換える）
+const PASSWORD = 'aitorch2024';
+
+const SESSION_KEY = 'aitorch_auth';
+const DATA_URL = 'https://raw.githubusercontent.com/k-aikawa-ai-torch/ai-torch-company-search/main/companies.json';
+
+function checkPw() {
+  const input = document.getElementById('pw-input').value;
+  if (input === PASSWORD) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('lock-error').textContent = 'パスワードが違います';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+// セッション中は再入力不要
+if (sessionStorage.getItem(SESSION_KEY) === '1') {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadData();
+} else {
+  document.getElementById('pw-input').focus();
+}
+
 let DATA = [];
 let activeTags = new Set();
-
-// ★ここを自分のGitHubユーザー名に合わせて変更済み
-const DATA_URL = 'https://raw.githubusercontent.com/k-aikawa-ai-torch/ai-torch-company-search/main/companies.json';
 
 async function loadData() {
   try {
@@ -152,8 +207,8 @@ function initSelects() {
   const roleSel = document.getElementById('role');
   indSel.innerHTML = '<option value="">全業界</option>';
   roleSel.innerHTML = '<option value="">全職種</option>';
-  allIndustries.forEach(i => { const o = document.createElement('option'); o.value = i; o.textContent = i; indSel.appendChild(o); });
-  allRoles.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roleSel.appendChild(o); });
+  allIndustries.forEach(i => { const o = document.createElement('option'); o.value=i; o.textContent=i; indSel.appendChild(o); });
+  allRoles.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; roleSel.appendChild(o); });
 }
 
 function toggleTag(el) {
@@ -242,8 +297,6 @@ function render() {
     </div>`;
   }).join('');
 }
-
-loadData();
 </script>
 </body>
 </html>
