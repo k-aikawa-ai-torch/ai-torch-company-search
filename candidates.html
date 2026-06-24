@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI torch 候補者管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
@@ -48,38 +49,61 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .salary-cell{white-space:nowrap;color:#2d6a4f;font-weight:500}
 .today-badge{background:#ffebcc;color:#b35a00;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
 .overdue-badge{background:#feecec;color:#991a1a;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
-/* 詳細・編集モーダル */
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 #modal.open{display:flex}
-#modal-box{background:#fff;border-radius:12px;width:100%;max-width:640px;padding:24px;margin:auto}
+#modal-box{background:#fff;border-radius:12px;width:100%;max-width:700px;padding:24px;margin:auto}
 #modal-box h2{font-size:16px;font-weight:500;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#888}
 .modal-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid #e8e8e8}
 .modal-tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:2px solid transparent}
 .modal-tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a;font-weight:500}
-/* 詳細表示 */
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
 .detail-item{padding:6px 0;border-bottom:1px solid #f5f5f0}
 .detail-label{font-size:10px;color:#aaa;margin-bottom:2px}
 .detail-value{font-size:13px;color:#1a1a1a}
 .detail-full{grid-column:1/-1}
-.memo-box{background:#f9f9f7;border:1px solid #e8e8e8;border-radius:8px;padding:12px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6;min-height:60px}
+/* マークダウンプレビュー */
+.markdown-preview{background:#f9f9f7;border:1px solid #e8e8e8;border-radius:8px;padding:12px;font-size:13px;color:#333;line-height:1.7;min-height:60px}
+.markdown-preview h1,.markdown-preview h2,.markdown-preview h3{margin:8px 0 4px;font-weight:600}
+.markdown-preview h1{font-size:16px}
+.markdown-preview h2{font-size:14px}
+.markdown-preview h3{font-size:13px}
+.markdown-preview ul,.markdown-preview ol{padding-left:20px;margin:4px 0}
+.markdown-preview li{margin:2px 0}
+.markdown-preview strong{font-weight:600}
+.markdown-preview em{font-style:italic}
+.markdown-preview hr{border:none;border-top:1px solid #ddd;margin:8px 0}
+.markdown-preview p{margin:4px 0}
+/* 提案求人テーブル */
+.pipeline-mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#888;padding:5px 8px;text-align:left;border-bottom:1px solid #e8e8e8}
+.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #f5f5f0;vertical-align:top}
+.pipeline-mini-table tr:last-child td{border-bottom:none}
+.pipeline-mini-table tr:hover td{background:#fafaf8}
 /* 編集フォーム */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group.full{grid-column:1/-1}
 .form-group label{font-size:11px;color:#888;font-weight:500}
 .form-group input,.form-group select,.form-group textarea{height:36px;padding:0 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;width:100%}
-.form-group textarea{height:100px;padding:8px 10px;resize:vertical}
+.form-group textarea{height:120px;padding:8px 10px;resize:vertical;font-family:inherit}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#888}
+.memo-toolbar{display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap}
+.memo-toolbar button{padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;color:#555}
+.memo-toolbar button:hover{background:#f5f5f0}
+.memo-toolbar select{height:26px;font-size:11px;padding:0 6px;border:1px solid #ddd;border-radius:4px;background:#fff}
+.preview-toggle{display:flex;gap:4px;margin-left:auto}
+.preview-toggle button{padding:2px 10px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
+.preview-toggle button.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0}
 .btn-save{padding:0 20px;height:38px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
 .btn-cancel{padding:0 20px;height:38px;background:#fff;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer}
 .btn-delete{padding:0 20px;height:38px;background:#feecec;color:#991a1a;border:1px solid #f5c0c0;border-radius:8px;font-size:13px;cursor:pointer;margin-right:auto}
 .btn-edit{padding:0 16px;height:32px;background:#f5f5f0;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer}
+.save-msg{font-size:12px;color:#2d6a4f;margin-right:auto;align-self:center}
 .loading{text-align:center;padding:40px;color:#888;font-size:14px}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
-.save-msg{font-size:12px;color:#2d6a4f;margin-right:auto;align-self:center}
+.section-title{font-size:12px;font-weight:500;color:#888;margin:16px 0 8px;padding-top:12px;border-top:1px solid #f0f0f0}
 </style>
 </head>
 <body>
@@ -117,44 +141,29 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       <input type="text" id="q" placeholder="候補者名・経路・職種で検索…" oninput="render()">
       <select id="phase-filter" onchange="render()">
         <option value="">全フェーズ</option>
-        <option>返信来た！</option>
-        <option>初回面談DONE</option>
-        <option>求人提案なう</option>
-        <option>推薦するやでぃ</option>
-        <option>選考なう</option>
-        <option>内定KITAAA</option>
-        <option>内定承諾歓喜</option>
-        <option>入社後フォローしようね</option>
+        <option>返信来た！</option><option>初回面談DONE</option><option>求人提案なう</option>
+        <option>推薦するやでぃ</option><option>選考なう</option><option>内定KITAAA</option>
+        <option>内定承諾歓喜</option><option>入社後フォローしようね</option>
       </select>
-      <select id="source-filter" onchange="render()">
-        <option value="">全経路</option>
-      </select>
+      <select id="source-filter" onchange="render()"><option value="">全経路</option></select>
     </div>
     <div class="top-bar">
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
         <span class="count" id="count"></span>
         <label style="margin-left:12px">第1ソート:</label>
         <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
-          <option value="phase">フェーズ</option>
-          <option value="name">候補者名</option>
-          <option value="next_action">NextAction日</option>
-          <option value="source">流入経路</option>
-          <option value="job_type">職種</option>
-          <option value="desired_salary">希望年収</option>
-          <option value="revenue_forecast">売上見込み</option>
-          <option value="registered_at">登録日</option>
+          <option value="phase">フェーズ</option><option value="name">候補者名</option>
+          <option value="next_action">NextAction日</option><option value="source">流入経路</option>
+          <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
+          <option value="revenue_forecast">売上見込み</option><option value="registered_at">登録日</option>
           <option value="status">ステータス</option>
         </select>
         <label>第2ソート:</label>
         <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
-          <option value="next_action">NextAction日</option>
-          <option value="phase">フェーズ</option>
-          <option value="name">候補者名</option>
-          <option value="source">流入経路</option>
-          <option value="job_type">職種</option>
-          <option value="desired_salary">希望年収</option>
-          <option value="revenue_forecast">売上見込み</option>
-          <option value="registered_at">登録日</option>
+          <option value="next_action">NextAction日</option><option value="phase">フェーズ</option>
+          <option value="name">候補者名</option><option value="source">流入経路</option>
+          <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
+          <option value="revenue_forecast">売上見込み</option><option value="registered_at">登録日</option>
           <option value="status">ステータス</option>
         </select>
       </div>
@@ -162,25 +171,16 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     </div>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr>
-            <th>候補者名</th>
-            <th>フェーズ</th>
-            <th>NextAction日</th>
-            <th>経路</th>
-            <th>職種</th>
-            <th>希望年収</th>
-            <th>売上見込</th>
-            <th>登録日</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>候補者名</th><th>フェーズ</th><th>NextAction日</th>
+          <th>経路</th><th>職種</th><th>希望年収</th><th>売上見込</th><th>登録日</th>
+        </tr></thead>
         <tbody id="tbody"><tr><td colspan="8" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- 詳細・編集モーダル -->
 <div id="modal">
   <div id="modal-box">
     <h2>
@@ -205,10 +205,11 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let DATA = [];
 let MEMBERS = [];
+let TEMPLATES = [];
 let currentMember = '全員';
 let currentTab = 'active';
 let currentId = null;
-let currentModalTab = 'detail';
+let memoMode = 'edit'; // 'edit' or 'preview'
 
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
 const PHASE_LIST = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
@@ -216,6 +217,7 @@ const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','
 const STATUS_LIST = ['進行中','将来的に声かけ予定_再アプローチ','終了_他社に移行','終了_自社と合わない','終了_転職延期','終了_承諾済み（フォローしようね）'];
 const SOURCE_LIST = ['スカウト（ビズリーチ）','レバテックダイレクト','スカウト（LinkedIn）','スカウト（AMBI）','スカウト（YOUTRUST）','リファラル（求職者紹介）','リファラル（社員経由）','自社HP','アライアンス'];
 const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%'];
+const PIPELINE_PHASES = ['書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜'];
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;
@@ -233,13 +235,15 @@ function showApp() {
 sb.auth.getSession().then(({ data: { session } }) => { if (session) showApp(); });
 
 async function loadData() {
-  const [{ data: members }, { data: candidates, error }] = await Promise.all([
+  const [{ data: members }, { data: candidates, error }, { data: templates }] = await Promise.all([
     sb.from('members').select('*'),
-    sb.from('candidates').select('*, members(display_name,name)').order('registered_at', { ascending: false })
+    sb.from('candidates').select('*, members(display_name,name)').order('registered_at', { ascending: false }),
+    sb.from('templates').select('*').order('name')
   ]);
   if (error) { document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">読み込み失敗</td></tr>'; return; }
   MEMBERS = members || [];
   DATA = candidates || [];
+  TEMPLATES = templates || [];
   document.getElementById('header-count').textContent = DATA.length + '名';
   const sources = [...new Set(DATA.map(c => c.source).filter(Boolean))].sort();
   const sel = document.getElementById('source-filter');
@@ -254,14 +258,12 @@ function setMember(m, el) {
   el.classList.add('active');
   render();
 }
-
 function setTab(t, el) {
   currentTab = t;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   render();
 }
-
 function getPhaseClass(phase) {
   if (!phase) return 'ph1';
   if (['返信来た！','初回面談DONE'].includes(phase)) return 'ph1';
@@ -271,7 +273,6 @@ function getPhaseClass(phase) {
   if (['入社後フォローしようね'].includes(phase)) return 'ph6';
   return 'ph1';
 }
-
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
 function today() { return new Date().toISOString().substring(0,10); }
@@ -281,9 +282,7 @@ function compareCandBy(key, a, b) {
   if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
   if (key === 'next_action') {
     if (a.next_action_day && b.next_action_day) return a.next_action_day.localeCompare(b.next_action_day);
-    if (a.next_action_day) return -1;
-    if (b.next_action_day) return 1;
-    return 0;
+    if (a.next_action_day) return -1; if (b.next_action_day) return 1; return 0;
   }
   if (key === 'source') return (a.source||'').localeCompare(b.source||'','ja');
   if (key === 'job_type') return (a.job_type||'').localeCompare(b.job_type||'','ja');
@@ -312,14 +311,9 @@ function render() {
     if (sourceFilter && c.source !== sourceFilter) return false;
     return true;
   });
-
   res.sort((a,b) => { const r1=compareCandBy(sort1,a,b); return r1!==0?r1:compareCandBy(sort2,a,b); });
   document.getElementById('count').textContent = res.length + '名';
-
-  if (!res.length) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">該当する候補者がいません</td></tr>';
-    return;
-  }
+  if (!res.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">該当する候補者がいません</td></tr>'; return; }
 
   document.getElementById('tbody').innerHTML = res.map(c => {
     const isToday = c.next_action_day === todayStr;
@@ -340,14 +334,20 @@ function render() {
   }).join('');
 }
 
-function openDetail(id) {
+async function openDetail(id) {
   currentId = id;
-  currentModalTab = 'detail';
   const c = DATA.find(d => d.id === id);
   document.getElementById('modal-title').textContent = c?.name || '候補者詳細';
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.modal-tab')[0].classList.add('active');
-  renderDetail(c);
+
+  // パイプラインデータを取得
+  const { data: pipelines } = await sb.from('pipeline')
+    .select('*')
+    .eq('candidate_id', id)
+    .order('created_at', { ascending: false });
+
+  renderDetail(c, pipelines || []);
   document.getElementById('modal-edit').style.display = 'none';
   document.getElementById('modal-detail').style.display = 'block';
   document.getElementById('modal').classList.add('open');
@@ -355,7 +355,6 @@ function openDetail(id) {
 
 function openAdd() {
   currentId = null;
-  currentModalTab = 'edit';
   document.getElementById('modal-title').textContent = '候補者追加';
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.modal-tab')[1].classList.add('active');
@@ -365,13 +364,15 @@ function openAdd() {
   document.getElementById('modal').classList.add('open');
 }
 
-function setModalTab(tab, el) {
-  currentModalTab = tab;
+async function setModalTab(tab, el) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   const c = currentId ? DATA.find(d => d.id === currentId) : null;
   if (tab === 'detail') {
-    renderDetail(c);
+    const { data: pipelines } = currentId
+      ? await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false })
+      : { data: [] };
+    renderDetail(c, pipelines || []);
     document.getElementById('modal-detail').style.display = 'block';
     document.getElementById('modal-edit').style.display = 'none';
   } else {
@@ -381,11 +382,29 @@ function setModalTab(tab, el) {
   }
 }
 
-function renderDetail(c) {
+function renderDetail(c, pipelines) {
   if (!c) return;
   const todayStr = today();
   const isToday = c.next_action_day === todayStr;
   const isOverdue = c.next_action_day && c.next_action_day < todayStr;
+
+  const pipelineHtml = pipelines.length > 0 ? `
+    <table class="pipeline-mini-table">
+      <thead><tr><th>求人名</th><th>フェーズ</th><th>NextAction日</th><th>メモ</th></tr></thead>
+      <tbody>
+        ${pipelines.map(p => `<tr>
+          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.job_name||'').replace(/\n/g,' ')}</td>
+          <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>
+          <td style="white-space:nowrap">${fmtDate(p.next_action_day)}</td>
+          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">${(p.memo||'').replace(/\n/g,' ')||'-'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
+
+  const memoHtml = c.memo
+    ? `<div class="markdown-preview">${marked.parse(c.memo)}</div>`
+    : '<div style="color:#aaa;font-size:12px">メモなし</div>';
+
   document.getElementById('modal-detail').innerHTML = `
     <div class="detail-grid">
       <div class="detail-item"><div class="detail-label">フェーズ</div><div class="detail-value"><span class="phase-badge ${getPhaseClass(c.phase)}">${c.phase||'-'}</span></div></div>
@@ -404,9 +423,12 @@ function renderDetail(c) {
       <div class="detail-item"><div class="detail-label">電話番号</div><div class="detail-value">${c.phone||'-'}</div></div>
       <div class="detail-item"><div class="detail-label">SNS URL</div><div class="detail-value">${c.sns_url?`<a href="${c.sns_url}" target="_blank">リンク</a>`:'-'}</div></div>
       <div class="detail-item"><div class="detail-label">NextAction日</div><div class="detail-value">${c.next_action_day?`${fmtDate(c.next_action_day)}${isToday?' 【今日】':''}${isOverdue?' 【期限切れ】':''}`:'-'}</div></div>
-      ${c.next_action?`<div class="detail-item detail-full"><div class="detail-label">ネクストアクション</div><div class="detail-value" style="margin-top:4px;white-space:pre-wrap">${c.next_action}</div></div>`:''}
-      ${c.memo?`<div class="detail-item detail-full"><div class="detail-label">メモ</div><div class="memo-box" style="margin-top:4px">${c.memo}</div></div>`:''}
+      ${c.next_action?`<div class="detail-item detail-full"><div class="detail-label">ネクストアクション</div><div class="detail-value" style="white-space:pre-wrap;margin-top:4px">${c.next_action}</div></div>`:''}
     </div>
+    <div class="section-title">メモ</div>
+    ${memoHtml}
+    <div class="section-title">提案求人（${pipelines.length}件）</div>
+    ${pipelineHtml}
     <div style="margin-top:16px;text-align:right">
       <button class="btn-edit" onclick="setModalTab('edit',document.querySelectorAll('.modal-tab')[1])">✏️ 編集する</button>
     </div>
@@ -417,10 +439,12 @@ function renderEditForm(c) {
   const memberOptions = MEMBERS.map(m => `<option value="${m.id}" ${c?.member_id===m.id?'selected':''}>${m.display_name}</option>`).join('');
   const phaseOptions = PHASE_LIST.map(p => `<option ${c?.phase===p?'selected':''}>${p}</option>`).join('');
   const statusOptions = STATUS_LIST.map(s => `<option ${c?.status===s?'selected':''}>${s}</option>`).join('');
-  const sourceOptions = SOURCE_LIST.map(s => `<option ${c?.source===s?'selected':''}>${s}</option>`).join('') +
-    (c?.source && !SOURCE_LIST.includes(c.source) ? `<option selected>${c.source}</option>` : '');
+  const sourceOptions = SOURCE_LIST.map(s => `<option ${c?.source===s?'selected':''}>${s}</option>`).join('')
+    + (c?.source && !SOURCE_LIST.includes(c.source) ? `<option selected>${c.source}</option>` : '');
   const yomiOptions = DECISION_YOMI_LIST.map(y => `<option ${c?.decision_yomi===y?'selected':''}>${y}</option>`).join('');
+  const templateOptions = TEMPLATES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
+  memoMode = 'edit';
   document.getElementById('modal-edit').innerHTML = `
     <div class="form-grid">
       <div class="form-group full"><label>候補者名 *</label><input id="f-name" value="${c?.name||''}" placeholder="例：山田 太郎様"></div>
@@ -430,18 +454,31 @@ function renderEditForm(c) {
       <div class="form-group"><label>流入経路</label><select id="f-source"><option value="">未設定</option>${sourceOptions}</select></div>
       <div class="form-group"><label>職種</label><input id="f-job-type" value="${c?.job_type||''}" placeholder="例：開発エンジニア"></div>
       <div class="form-group"><label>現所属/概歴</label><input id="f-current-company" value="${c?.current_company||''}" placeholder="例：株式会社〇〇"></div>
-      <div class="form-group"><label>希望年収（円）</label><input id="f-desired-salary" type="number" value="${c?.desired_salary||''}" placeholder="例：6000000"></div>
-      <div class="form-group"><label>売上見込み（円）</label><input id="f-revenue-forecast" type="number" value="${c?.revenue_forecast||''}" placeholder="例：1200000"></div>
-      <div class="form-group"><label>売上ヨミ金額（円）</label><input id="f-revenue-yomi" type="number" value="${c?.revenue_yomi||''}" placeholder="例：1200000"></div>
+      <div class="form-group"><label>希望年収（円）</label><input id="f-desired-salary" type="number" value="${c?.desired_salary||''}"></div>
+      <div class="form-group"><label>売上見込み（円）</label><input id="f-revenue-forecast" type="number" value="${c?.revenue_forecast||''}"></div>
+      <div class="form-group"><label>売上ヨミ金額（円）</label><input id="f-revenue-yomi" type="number" value="${c?.revenue_yomi||''}"></div>
       <div class="form-group"><label>決定ヨミ</label><select id="f-decision-yomi"><option value="">未設定</option>${yomiOptions}</select></div>
-      <div class="form-group"><label>メールアドレス</label><input id="f-email" type="email" value="${c?.email||''}" placeholder="例：example@email.com"></div>
-      <div class="form-group"><label>電話番号</label><input id="f-phone" value="${c?.phone||''}" placeholder="例：090-1234-5678"></div>
-      <div class="form-group"><label>SNS URL</label><input id="f-sns-url" value="${c?.sns_url||''}" placeholder="https://..."></div>
+      <div class="form-group"><label>メール</label><input id="f-email" type="email" value="${c?.email||''}"></div>
+      <div class="form-group"><label>電話番号</label><input id="f-phone" value="${c?.phone||''}"></div>
+      <div class="form-group"><label>SNS URL</label><input id="f-sns-url" value="${c?.sns_url||''}"></div>
       <div class="form-group"><label>登録日</label><input id="f-registered-at" type="date" value="${c?.registered_at?c.registered_at.substring(0,10):''}"></div>
       <div class="form-group"><label>入社想定日</label><input id="f-expected-join" type="date" value="${c?.expected_join_date||''}"></div>
       <div class="form-group"><label>NextAction日</label><input id="f-next-action-day" type="date" value="${c?.next_action_day||''}"></div>
-      <div class="form-group full"><label>ネクストアクション</label><textarea id="f-next-action" placeholder="次にすべきアクションを入力…">${c?.next_action||''}</textarea></div>
-      <div class="form-group full"><label>メモ</label><textarea id="f-memo" style="height:150px" placeholder="面談メモ・転職軸・その他情報を入力…">${c?.memo||''}</textarea></div>
+      <div class="form-group full"><label>ネクストアクション</label><textarea id="f-next-action" style="height:80px">${c?.next_action||''}</textarea></div>
+      <div class="form-group full">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <label>メモ（マークダウン対応）</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            ${templateOptions ? `<select id="template-select" onchange="applyTemplate()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid #ddd;border-radius:4px;background:#fff"><option value="">テンプレートを選択…</option>${templateOptions}</select>` : ''}
+            <button onclick="saveMemoTemplate()" style="padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer">💾 テンプレート保存</button>
+            <button onclick="toggleMemoMode('edit')" id="btn-edit-mode" style="padding:2px 8px;font-size:11px;border:1px solid #1a1a1a;border-radius:4px;background:#1a1a1a;color:#fff;cursor:pointer">編集</button>
+            <button onclick="toggleMemoMode('preview')" id="btn-preview-mode" style="padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer">プレビュー</button>
+          </div>
+        </div>
+        <div style="margin-bottom:4px;font-size:11px;color:#aaa">**太字** _斜体_ ## 見出し - 箇条書き</div>
+        <textarea id="f-memo" style="height:200px;font-family:monospace">${c?.memo||''}</textarea>
+        <div id="memo-preview" class="markdown-preview" style="display:none;min-height:200px"></div>
+      </div>
     </div>
     <div class="form-actions">
       ${c ? `<button class="btn-delete" onclick="deleteCandidate('${c.id}')">🗑 削除</button>` : ''}
@@ -452,9 +489,60 @@ function renderEditForm(c) {
   `;
 }
 
+function toggleMemoMode(mode) {
+  memoMode = mode;
+  const textarea = document.getElementById('f-memo');
+  const preview = document.getElementById('memo-preview');
+  const btnEdit = document.getElementById('btn-edit-mode');
+  const btnPreview = document.getElementById('btn-preview-mode');
+  if (mode === 'preview') {
+    preview.innerHTML = marked.parse(textarea.value || '');
+    textarea.style.display = 'none';
+    preview.style.display = 'block';
+    btnEdit.style.background = '#fff'; btnEdit.style.color = '#1a1a1a'; btnEdit.style.borderColor = '#ddd';
+    btnPreview.style.background = '#1a1a1a'; btnPreview.style.color = '#fff'; btnPreview.style.borderColor = '#1a1a1a';
+  } else {
+    textarea.style.display = 'block';
+    preview.style.display = 'none';
+    btnEdit.style.background = '#1a1a1a'; btnEdit.style.color = '#fff'; btnEdit.style.borderColor = '#1a1a1a';
+    btnPreview.style.background = '#fff'; btnPreview.style.color = '#1a1a1a'; btnPreview.style.borderColor = '#ddd';
+  }
+}
+
+function applyTemplate() {
+  const sel = document.getElementById('template-select');
+  const tid = sel.value;
+  if (!tid) return;
+  const t = TEMPLATES.find(t => t.id === tid);
+  if (!t) return;
+  const textarea = document.getElementById('f-memo');
+  if (textarea.value && !confirm('現在のメモを上書きしますか？')) { sel.value = ''; return; }
+  textarea.value = t.content;
+  if (memoMode === 'preview') toggleMemoMode('preview');
+  sel.value = '';
+}
+
+async function saveMemoTemplate() {
+  const content = document.getElementById('f-memo').value;
+  if (!content.trim()) { alert('メモに内容を入力してからテンプレートとして保存してください'); return; }
+  const name = prompt('テンプレート名を入力してください:');
+  if (!name) return;
+  const { error } = await sb.from('templates').insert({ name, content });
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  alert(`テンプレート「${name}」を保存しました`);
+  const { data } = await sb.from('templates').select('*').order('name');
+  TEMPLATES = data || [];
+  // テンプレートセレクトを更新
+  const sel = document.getElementById('template-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">テンプレートを選択…</option>' + TEMPLATES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  }
+}
+
 async function saveCandidate() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('候補者名を入力してください'); return; }
+  const memoEl = document.getElementById('f-memo');
 
   const payload = {
     name,
@@ -475,7 +563,7 @@ async function saveCandidate() {
     expected_join_date: document.getElementById('f-expected-join').value || null,
     next_action_day: document.getElementById('f-next-action-day').value || null,
     next_action: document.getElementById('f-next-action').value || null,
-    memo: document.getElementById('f-memo').value || null,
+    memo: memoEl ? memoEl.value : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -485,25 +573,16 @@ async function saveCandidate() {
   } else {
     ({ error } = await sb.from('candidates').insert(payload));
   }
-
-  if (error) {
-    alert('保存に失敗しました: ' + error.message);
-    return;
-  }
-
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
   document.getElementById('save-msg').textContent = '✅ 保存しました';
-  setTimeout(() => {
-    closeModal();
-    loadData();
-  }, 800);
+  setTimeout(() => { closeModal(); loadData(); }, 800);
 }
 
 async function deleteCandidate(id) {
   if (!confirm('この候補者を削除してよいですか？')) return;
   const { error } = await sb.from('candidates').delete().eq('id', id);
   if (error) { alert('削除に失敗しました: ' + error.message); return; }
-  closeModal();
-  loadData();
+  closeModal(); loadData();
 }
 
 function closeModal() {
