@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI torch パイプライン</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+#lock-screen{position:fixed;inset:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#fff;border-radius:12px;padding:36px 40px;width:320px;text-align:center}
+#lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
+#lock-box p{font-size:13px;color:#888;margin-bottom:20px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:10px}
+#lock-box input:focus{outline:none;border-color:#888}
+#lock-box button{width:100%;height:40px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+#lock-error{color:#c00;font-size:12px;margin-top:8px;min-height:18px}
+#app{display:none}
+.header{background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header h1{font-size:15px;font-weight:500}
+.badge{background:#3a3a3a;font-size:11px;padding:2px 8px;border-radius:4px;color:#aaa}
+.member-tabs{display:flex;gap:4px;margin-left:auto}
+.member-tab{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid #444;color:#aaa;background:transparent;transition:all 0.15s}
+.member-tab.active{background:#fff;color:#1a1a1a;border-color:#fff}
+.main{max-width:1100px;margin:0 auto;padding:16px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.filters input{height:36px;padding:0 12px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
+.filters select{height:36px;padding:0 10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.count{font-size:13px;color:#888}
+.sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
+.sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e8e8e8;font-size:12px}
+th{background:#f9f9f7;font-size:11px;font-weight:500;color:#888;padding:8px 12px;text-align:left;border-bottom:1px solid #e8e8e8;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{background:#f0f0ec}
+th.sorted{color:#1a1a1a}
+td{padding:8px 12px;border-bottom:1px solid #f5f5f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+.phase-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;white-space:nowrap}
+.ph-return{background:#fef3cd;color:#7d5a00}
+.ph-interview{background:#fef3cd;color:#7d5a00}
+.ph-propose{background:#d4edda;color:#155724}
+.ph-recommend{background:#d4edda;color:#155724}
+.ph-selection{background:#cce5ff;color:#004085}
+.ph-offer{background:#e2d9f3;color:#3d2080}
+.ph-accept{background:#e2d9f3;color:#3d2080}
+.ph-joined{background:#d1ecf1;color:#0c5460}
+.ph-other{background:#f1f1f1;color:#666}
+.memo-cell{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666}
+.today-badge{background:#ffebcc;color:#b35a00;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
+.overdue-badge{background:#feecec;color:#991a1a;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
+.soon-badge{background:#e8f4fd;color:#0066cc;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
+/* モーダル */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+#modal.open{display:flex}
+#modal-box{background:#fff;border-radius:12px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
+#modal-box h2{font-size:16px;font-weight:500;margin-bottom:4px}
+#modal-box .subtitle{font-size:13px;color:#888;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#888}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px}
+.detail-item{padding:6px 0;border-bottom:1px solid #f5f5f0}
+.detail-label{font-size:10px;color:#aaa;margin-bottom:2px}
+.detail-value{font-size:13px;color:#1a1a1a}
+.detail-full{grid-column:1/-1}
+.memo-box{background:#f9f9f7;border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-top:4px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6}
+.next-action-box{background:#fffbf0;border:1px solid #f0e0a0;border-radius:8px;padding:12px;margin-top:12px}
+.next-action-box .label{font-size:11px;color:#888;margin-bottom:4px}
+.next-action-box .value{font-size:13px;color:#1a1a1a}
+.loading{text-align:center;padding:40px;color:#888;font-size:14px}
+.empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
+.candidate-link{color:#1a1a1a;font-weight:500;text-decoration:none}
+.candidate-link:hover{text-decoration:underline}
+.funnel-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:16px}
+.funnel-item{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;transition:border-color 0.15s}
+.funnel-item:hover{border-color:#bbb}
+.funnel-item.active{border-color:#1a1a1a;background:#1a1a1a}
+.funnel-item.active .funnel-num{color:#fff}
+.funnel-item.active .funnel-label{color:#aaa}
+.funnel-num{font-size:20px;font-weight:600;color:#1a1a1a}
+.funnel-label{font-size:10px;color:#888;margin-top:2px}
+</style>
+</head>
+<body>
+<div id="lock-screen">
+  <div id="lock-box">
+    <h2>AI torch パイプライン</h2>
+    <p>メールアドレスとパスワードでログイン</p>
+    <input type="email" id="email-input" placeholder="メールアドレス">
+    <input type="password" id="pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">ログイン</button>
+    <div id="lock-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <h1>AI torch パイプライン</h1>
+    <span class="badge" id="header-count">読み込み中…</span>
+    <div class="member-tabs">
+      <button class="member-tab active" onclick="setMember('全員',this)">全員</button>
+      <button class="member-tab" onclick="setMember('相川',this)">相川</button>
+      <button class="member-tab" onclick="setMember('永井',this)">永井</button>
+      <button class="member-tab" onclick="setMember('會澤',this)">會澤</button>
+    </div>
+    <span class="badge" style="cursor:pointer" onclick="logout()">ログアウト</span>
+  </div>
+  <div class="main">
+    <!-- フェーズファネル -->
+    <div class="funnel-row" id="funnel"></div>
+
+    <div class="filters">
+      <input type="text" id="q" placeholder="求人名・メモで検索…" oninput="render()">
+      <select id="status-filter" onchange="render()">
+        <option value="進行中">進行中</option>
+        <option value="">全ステータス</option>
+        <option value="終了_辞退">終了_辞退</option>
+        <option value="終了_不合格">終了_不合格</option>
+      </select>
+    </div>
+    <div class="top-bar">
+      <span class="count" id="count"></span>
+      <div class="sort-wrap">
+        <label>並び替え:</label>
+        <select id="sort" onchange="render()">
+          <option value="next_action">ネクストアクション日</option>
+          <option value="phase">フェーズ</option>
+          <option value="created">登録日（新しい順）</option>
+          <option value="job">求人名</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="setSortCol('member')">担当</th>
+            <th onclick="setSortCol('candidate')">候補者</th>
+            <th onclick="setSortCol('job')">求人名</th>
+            <th onclick="setSortCol('phase')">フェーズ</th>
+            <th onclick="setSortCol('next_action')">NextAction日</th>
+            <th onclick="setSortCol('memo')">メモ</th>
+            <th onclick="setSortCol('created')">登録日</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="7" class="loading">データを読み込み中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div id="modal">
+  <div id="modal-box">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h2 id="modal-job"></h2>
+    <div class="subtitle" id="modal-candidate"></div>
+    <div class="detail-grid" id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let DATA = [];
+let currentMember = '全員';
+let selectedPhase = '';
+let sortCol = 'next_action';
+
+const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+
+const MEMBER_MAP = {
+  '相川': 'aikawa_kenta',
+  '永井': 'nagai_yudai',
+  '會澤': 'aizawa_yuma'
+};
+
+async function login() {
+  const email = document.getElementById('email-input').value;
+  const password = document.getElementById('pw-input').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います';
+    return;
+  }
+  showApp();
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadData();
+}
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) showApp();
+});
+
+async function loadData() {
+  const { data, error } = await sb.from('pipeline')
+    .select('*, members(display_name, name), candidates(name, source, desired_salary, revenue_forecast)')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading">データの読み込みに失敗しました。</td></tr>';
+    return;
+  }
+
+  DATA = data;
+  document.getElementById('header-count').textContent = DATA.length + '件';
+  renderFunnel();
+  render();
+}
+
+function setMember(m, el) {
+  currentMember = m;
+  document.querySelectorAll('.member-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  selectedPhase = '';
+  renderFunnel();
+  render();
+}
+
+function setSortCol(col) {
+  sortCol = col;
+  render();
+}
+
+function getFiltered() {
+  const q = (document.getElementById('q').value || '').toLowerCase();
+  const statusFilter = document.getElementById('status-filter').value;
+
+  return DATA.filter(p => {
+    if (currentMember !== '全員') {
+      const memberName = MEMBER_MAP[currentMember];
+      if (p.members?.name !== memberName) return false;
+    }
+    if (statusFilter && p.status !== statusFilter) return false;
+    if (selectedPhase && p.phase !== selectedPhase) return false;
+    if (q && !(p.job_name||'').toLowerCase().includes(q) && !(p.memo||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderFunnel() {
+  const statusFilter = document.getElementById('status-filter')?.value || '進行中';
+  const filtered = DATA.filter(p => {
+    if (currentMember !== '全員') {
+      const memberName = MEMBER_MAP[currentMember];
+      if (p.members?.name !== memberName) return false;
+    }
+    if (statusFilter && p.status !== statusFilter) return false;
+    return true;
+  });
+
+  const phaseCounts = {};
+  filtered.forEach(p => {
+    const ph = p.phase || '未設定';
+    phaseCounts[ph] = (phaseCounts[ph] || 0) + 1;
+  });
+
+  const funnel = document.getElementById('funnel');
+  funnel.innerHTML = PHASE_ORDER.filter(ph => phaseCounts[ph]).map(ph => `
+    <div class="funnel-item ${selectedPhase === ph ? 'active' : ''}" onclick="togglePhase('${ph}')">
+      <div class="funnel-num">${phaseCounts[ph]}</div>
+      <div class="funnel-label">${ph}</div>
+    </div>
+  `).join('');
+}
+
+function togglePhase(ph) {
+  selectedPhase = selectedPhase === ph ? '' : ph;
+  renderFunnel();
+  render();
+}
+
+function getPhaseClass(phase) {
+  if (!phase) return 'ph-other';
+  if (['返信来た！'].includes(phase)) return 'ph-return';
+  if (['初回面談DONE'].includes(phase)) return 'ph-interview';
+  if (['求人提案なう','応募承諾'].includes(phase)) return 'ph-propose';
+  if (['推薦するやでぃ'].includes(phase)) return 'ph-recommend';
+  if (['書類選考','カジュアル面談','一次面接','二次〜面接','最終面接'].includes(phase)) return 'ph-selection';
+  if (['内定KITAAA'].includes(phase)) return 'ph-offer';
+  if (['内定承諾歓喜'].includes(phase)) return 'ph-accept';
+  if (['入社後フォローしようね'].includes(phase)) return 'ph-joined';
+  return 'ph-other';
+}
+
+function formatDate(v) {
+  if (!v) return '-';
+  return v.substring(0, 10);
+}
+
+function today() { return new Date().toISOString().substring(0, 10); }
+
+function getDayDiff(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const t = new Date();
+  t.setHours(0,0,0,0);
+  return Math.floor((d - t) / (1000 * 60 * 60 * 24));
+}
+
+function render() {
+  let res = getFiltered();
+  const todayStr = today();
+
+  // ソート
+  res.sort((a, b) => {
+    if (sortCol === 'next_action') {
+      if (a.next_action_day && b.next_action_day) return a.next_action_day.localeCompare(b.next_action_day);
+      if (a.next_action_day) return -1;
+      if (b.next_action_day) return 1;
+      return (b.created_at||'').localeCompare(a.created_at||'');
+    }
+    if (sortCol === 'phase') return (PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase));
+    if (sortCol === 'created') return (b.created_at||'').localeCompare(a.created_at||'');
+    if (sortCol === 'job') return (a.job_name||'').localeCompare(b.job_name||'', 'ja');
+    return 0;
+  });
+
+  document.getElementById('count').textContent = res.length + '件';
+
+  if (res.length === 0) {
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="empty">該当する案件がありません</td></tr>';
+    return;
+  }
+
+  document.getElementById('tbody').innerHTML = res.map(p => {
+    const diff = getDayDiff(p.next_action_day);
+    let dateLabel = '-';
+    if (p.next_action_day) {
+      dateLabel = formatDate(p.next_action_day);
+      if (diff === 0) dateLabel += '<span class="today-badge">今日</span>';
+      else if (diff < 0) dateLabel += '<span class="overdue-badge">期限切れ</span>';
+      else if (diff <= 3) dateLabel += '<span class="soon-badge">あと' + diff + '日</span>';
+    }
+
+    const jobShort = (p.job_name||'').replace(/\n/g,' ').substring(0, 25);
+    const memo = (p.memo||'').replace(/\n/g,' ');
+    const candidateName = p.candidates?.name || '-';
+
+    return `<tr onclick="openModal('${p.id}')">
+      <td style="color:#888;font-size:11px">${p.members?.display_name||'-'}</td>
+      <td><strong>${candidateName}</strong></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jobShort}</td>
+      <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>
+      <td style="white-space:nowrap">${dateLabel}</td>
+      <td class="memo-cell" title="${memo}">${memo||'-'}</td>
+      <td style="color:#aaa">${formatDate(p.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal(id) {
+  const p = DATA.find(d => d.id === id);
+  if (!p) return;
+
+  document.getElementById('modal-job').textContent = (p.job_name||'求人名なし').replace(/\n/g,' ');
+  document.getElementById('modal-candidate').textContent = 
+    (p.candidates?.name||'候補者名なし') + ' ／ ' + (p.members?.display_name||'-');
+
+  const diff = getDayDiff(p.next_action_day);
+  let dateLabel = formatDate(p.next_action_day);
+  if (p.next_action_day) {
+    if (diff === 0) dateLabel += ' 【今日】';
+    else if (diff < 0) dateLabel += ' 【期限切れ】';
+    else if (diff <= 3) dateLabel += ` 【あと${diff}日】`;
+  }
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="detail-item">
+      <div class="detail-label">フェーズ</div>
+      <div class="detail-value"><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">ステータス</div>
+      <div class="detail-value">${p.status||'-'}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">NextAction日</div>
+      <div class="detail-value">${dateLabel}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">推薦日</div>
+      <div class="detail-value">${formatDate(p.recommended_at)}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">売上見込み</div>
+      <div class="detail-value">${p.candidates?.revenue_forecast ? '¥'+(p.candidates.revenue_forecast/10000).toFixed(0)+'万' : '-'}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">候補者希望年収</div>
+      <div class="detail-value">${p.candidates?.desired_salary ? '¥'+(p.candidates.desired_salary/10000).toFixed(0)+'万' : '-'}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">流入経路</div>
+      <div class="detail-value">${p.candidates?.source||'-'}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">登録日</div>
+      <div class="detail-value">${formatDate(p.created_at)}</div>
+    </div>
+    ${p.memo ? `
+    <div class="detail-item detail-full">
+      <div class="detail-label">メモ</div>
+      <div class="memo-box">${p.memo}</div>
+    </div>` : ''}
+  `;
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
