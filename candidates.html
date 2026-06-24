@@ -196,6 +196,20 @@ tr:hover td{background:#fafaf8;cursor:pointer}
   </div>
 </div>
 
+<!-- 提案求人モーダル -->
+<div id="pipeline-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1100;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:560px;padding:24px;margin:auto">
+    <h2 style="font-size:16px;font-weight:500;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
+      <span id="pipeline-modal-title">提案求人を追加</span>
+      <button onclick="closePipelineModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">×</button>
+    </h2>
+    <div id="pipeline-modal-content"></div>
+  </div>
+</div>
+<style>
+#pipeline-modal.open{display:flex}
+</style>
+
 <script>
 const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
@@ -476,7 +490,7 @@ function renderEditForm(c) {
           </div>
         </div>
         <div style="margin-bottom:4px;font-size:11px;color:#aaa">**太字** _斜体_ ## 見出し - 箇条書き</div>
-        <textarea id="f-memo" style="height:200px;font-family:monospace">${c?.memo||''}</textarea>
+        <textarea id="f-memo" style="height:200px;font-family:monospace" onkeydown="handleMemoKeydown(event)" oninput="handleMemoInput(event)">${c?.memo||''}</textarea>
         <div id="memo-preview" class="markdown-preview" style="display:none;min-height:200px"></div>
       </div>
     </div>
@@ -487,6 +501,80 @@ function renderEditForm(c) {
       <button class="btn-save" onclick="saveCandidate()">保存</button>
     </div>
   `;
+}
+
+function handleMemoKeydown(e) {
+  const ta = e.target;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const lines = ta.value.split('\n');
+  const lineIndex = ta.value.substring(0, start).split('\n').length - 1;
+  const currentLine = lines[lineIndex];
+
+  // Enterキーの処理
+  if (e.key === 'Enter') {
+    // 箇条書きの継続（- で始まる行）
+    const bulletMatch = currentLine.match(/^(\s*)([-*])\s/);
+    if (bulletMatch) {
+      // 現在行が空の箇条書きなら箇条書きを終了
+      if (currentLine.trim() === '-' || currentLine.trim() === '*') {
+        e.preventDefault();
+        const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+        ta.value = ta.value.substring(0, lineStart) + '\n' + ta.value.substring(end);
+        ta.selectionStart = ta.selectionEnd = lineStart + 1;
+        return;
+      }
+      e.preventDefault();
+      const indent = bulletMatch[1];
+      const bullet = bulletMatch[2];
+      const insert = '\n' + indent + bullet + ' ';
+      ta.value = ta.value.substring(0, start) + insert + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+      return;
+    }
+
+    // 番号付きリストの継続（1. で始まる行）
+    const numberedMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+    if (numberedMatch) {
+      if (currentLine.trim().match(/^\d+\.$/)) {
+        e.preventDefault();
+        const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+        ta.value = ta.value.substring(0, lineStart) + '\n' + ta.value.substring(end);
+        ta.selectionStart = ta.selectionEnd = lineStart + 1;
+        return;
+      }
+      e.preventDefault();
+      const indent = numberedMatch[1];
+      const nextNum = parseInt(numberedMatch[2]) + 1;
+      const insert = '\n' + indent + nextNum + '. ';
+      ta.value = ta.value.substring(0, start) + insert + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+      return;
+    }
+  }
+
+  // Tabキーでインデント
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end);
+    ta.selectionStart = ta.selectionEnd = start + 2;
+  }
+}
+
+function handleMemoInput(e) {
+  const ta = e.target;
+  const start = ta.selectionStart;
+  const lines = ta.value.split('\n');
+  const lineIndex = ta.value.substring(0, start).split('\n').length - 1;
+  const currentLine = lines[lineIndex];
+  const cursorPosInLine = start - ta.value.split('\n').slice(0, lineIndex).join('\n').length - (lineIndex > 0 ? 1 : 0);
+
+  // "- " or "* " を入力したらそのまま（すでに箇条書き形式）
+  // "# " を入力したら見出し形式（そのまま）
+  // リアルタイムプレビューモードならプレビューも更新
+  if (memoMode === 'preview') {
+    document.getElementById('memo-preview').innerHTML = marked.parse(ta.value || '');
+  }
 }
 
 function toggleMemoMode(mode) {
@@ -591,6 +679,108 @@ function closeModal() {
 }
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
+});
+
+// ===== 提案求人 追加・編集モーダル =====
+const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+const PIPELINE_STATUS_LIST = ['進行中','終了_辞退','終了_不合格','終了_その他'];
+let currentPipelineId = null;
+let currentPipelineCandidateId = null;
+
+function openPipelineAdd(candidateId) {
+  currentPipelineId = null;
+  currentPipelineCandidateId = candidateId;
+  showPipelineModal(null);
+}
+
+async function openPipelineEdit(pipelineId) {
+  currentPipelineId = pipelineId;
+  const { data } = await sb.from('pipeline').select('*').eq('id', pipelineId).single();
+  showPipelineModal(data);
+}
+
+function showPipelineModal(p) {
+  const phaseOptions = PIPELINE_PHASE_LIST.map(ph => `<option ${p?.phase===ph?'selected':''}>${ph}</option>`).join('');
+  const statusOptions = PIPELINE_STATUS_LIST.map(s => `<option ${p?.status===s?'selected':''}>${s}</option>`).join('');
+
+  document.getElementById('pipeline-modal-content').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group full"><label>求人名 *</label><input id="pf-job-name" value="${(p?.job_name||'').replace(/"/g,'&quot;')}" placeholder="例：株式会社〇〇 エンジニア"></div>
+      <div class="form-group full"><label>求人URL</label><input id="pf-job-url" value="${p?.job_url||''}" placeholder="https://..."></div>
+      <div class="form-group"><label>フェーズ</label><select id="pf-phase"><option value="">未設定</option>${phaseOptions}</select></div>
+      <div class="form-group"><label>ステータス</label><select id="pf-status"><option value="">未設定</option>${statusOptions}</select></div>
+      <div class="form-group"><label>NextAction日</label><input id="pf-next-action-day" type="date" value="${p?.next_action_day||''}"></div>
+      <div class="form-group"><label>推薦日</label><input id="pf-recommended-at" type="date" value="${p?.recommended_at||''}"></div>
+      <div class="form-group full"><label>メモ</label><textarea id="pf-memo" style="height:120px">${p?.memo||''}</textarea></div>
+    </div>
+    <div class="form-actions">
+      ${p ? `<button class="btn-delete" onclick="deletePipeline('${p.id}')">🗑 削除</button>` : ''}
+      <span class="save-msg" id="pipeline-save-msg"></span>
+      <button class="btn-cancel" onclick="closePipelineModal()">キャンセル</button>
+      <button class="btn-save" onclick="savePipeline()">保存</button>
+    </div>
+  `;
+  document.getElementById('pipeline-modal-title').textContent = p ? '提案求人を編集' : '提案求人を追加';
+  document.getElementById('pipeline-modal').classList.add('open');
+}
+
+async function savePipeline() {
+  const jobName = document.getElementById('pf-job-name').value.trim();
+  if (!jobName) { alert('求人名を入力してください'); return; }
+
+  const payload = {
+    job_name: jobName,
+    job_url: document.getElementById('pf-job-url').value || null,
+    phase: document.getElementById('pf-phase').value || null,
+    status: document.getElementById('pf-status').value || null,
+    next_action_day: document.getElementById('pf-next-action-day').value || null,
+    recommended_at: document.getElementById('pf-recommended-at').value || null,
+    memo: document.getElementById('pf-memo').value || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  let error;
+  if (currentPipelineId) {
+    ({ error } = await sb.from('pipeline').update(payload).eq('id', currentPipelineId));
+  } else {
+    // 新規追加：candidate_idとmember_idを設定
+    const candidate = DATA.find(c => c.id === currentPipelineCandidateId);
+    payload.candidate_id = currentPipelineCandidateId;
+    payload.member_id = candidate?.member_id || null;
+    ({ error } = await sb.from('pipeline').insert(payload));
+  }
+
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  document.getElementById('pipeline-save-msg').textContent = '✅ 保存しました';
+  setTimeout(async () => {
+    closePipelineModal();
+    // 詳細画面を更新
+    if (currentId) {
+      const { data: pipelines } = await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false });
+      const c = DATA.find(d => d.id === currentId);
+      renderDetail(c, pipelines || []);
+    }
+  }, 600);
+}
+
+async function deletePipeline(id) {
+  if (!confirm('この提案求人を削除してよいですか？')) return;
+  const { error } = await sb.from('pipeline').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  closePipelineModal();
+  if (currentId) {
+    const { data: pipelines } = await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false });
+    const c = DATA.find(d => d.id === currentId);
+    renderDetail(c, pipelines || []);
+  }
+}
+
+function closePipelineModal() {
+  document.getElementById('pipeline-modal').classList.remove('open');
+  currentPipelineId = null;
+}
+document.getElementById('pipeline-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('pipeline-modal')) closePipelineModal();
 });
 </script>
 </body>
