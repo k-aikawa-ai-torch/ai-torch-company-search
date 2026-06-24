@@ -117,7 +117,35 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <option value="">全経路</option>
       </select>
     </div>
-    <div class="count" id="count"></div>
+    <div class="top-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span class="count" id="count"></span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666">
+        <label>第1ソート:</label>
+        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+          <option value="phase">フェーズ</option>
+          <option value="name">候補者名</option>
+          <option value="next_action">NextAction日</option>
+          <option value="source">流入経路</option>
+          <option value="job_type">職種</option>
+          <option value="desired_salary">希望年収</option>
+          <option value="revenue_forecast">売上見込み</option>
+          <option value="registered_at">登録日</option>
+          <option value="status">ステータス</option>
+        </select>
+        <label>第2ソート:</label>
+        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+          <option value="next_action">NextAction日</option>
+          <option value="phase">フェーズ</option>
+          <option value="name">候補者名</option>
+          <option value="source">流入経路</option>
+          <option value="job_type">職種</option>
+          <option value="desired_salary">希望年収</option>
+          <option value="revenue_forecast">売上見込み</option>
+          <option value="registered_at">登録日</option>
+          <option value="status">ステータス</option>
+        </select>
+      </div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -148,8 +176,8 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 </div>
 
 <script>
-const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -296,12 +324,33 @@ function render() {
     return true;
   });
 
-  // ネクストアクション日順→登録日順
-  res.sort((a, b) => {
-    if (a.next_action_day && b.next_action_day) return a.next_action_day.localeCompare(b.next_action_day);
-    if (a.next_action_day) return -1;
-    if (b.next_action_day) return 1;
-    return (b.registered_at||'').localeCompare(a.registered_at||'');
+  const sort1 = document.getElementById('sort1').value;
+  const sort2 = document.getElementById('sort2').value;
+
+  const PHASE_ORDER_C = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+
+  function compareCandBy(key, a, b) {
+    if (key === 'phase') return PHASE_ORDER_C.indexOf(a.phase) - PHASE_ORDER_C.indexOf(b.phase);
+    if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
+    if (key === 'next_action') {
+      if (a.next_action_day && b.next_action_day) return a.next_action_day.localeCompare(b.next_action_day);
+      if (a.next_action_day) return -1;
+      if (b.next_action_day) return 1;
+      return 0;
+    }
+    if (key === 'source') return (a.source||'').localeCompare(b.source||'','ja');
+    if (key === 'job_type') return (a.job_type||'').localeCompare(b.job_type||'','ja');
+    if (key === 'desired_salary') return (b.desired_salary||0) - (a.desired_salary||0);
+    if (key === 'revenue_forecast') return (b.revenue_forecast||0) - (a.revenue_forecast||0);
+    if (key === 'registered_at') return (b.registered_at||'').localeCompare(a.registered_at||'');
+    if (key === 'status') return (a.status||'').localeCompare(b.status||'','ja');
+    return 0;
+  }
+
+  res.sort((a,b) => {
+    const r1 = compareCandBy(sort1, a, b);
+    if (r1 !== 0) return r1;
+    return compareCandBy(sort2, a, b);
   });
 
   document.getElementById('count').textContent = res.length + '名';

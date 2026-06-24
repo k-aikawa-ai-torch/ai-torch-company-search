@@ -111,10 +111,18 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <div class="top-bar">
       <span class="count" id="count"></span>
       <div class="sort-wrap">
-        <label>並び替え:</label>
-        <select id="sort" onchange="render()">
+        <label>第1ソート:</label>
+        <select id="sort1" onchange="render()">
+          <option value="candidate">候補者名</option>
           <option value="next_action">NextAction日</option>
           <option value="phase">フェーズ</option>
+          <option value="created">登録日</option>
+          <option value="job">求人名</option>
+        </select>
+        <label style="margin-left:8px">第2ソート:</label>
+        <select id="sort2" onchange="render()">
+          <option value="phase">フェーズ</option>
+          <option value="next_action">NextAction日</option>
           <option value="candidate">候補者名</option>
           <option value="created">登録日</option>
           <option value="job">求人名</option>
@@ -150,8 +158,8 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 </div>
 
 <script>
-const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -290,19 +298,27 @@ function dateLabel(d) {
 
 function render() {
   let res = getFiltered();
-  const sort = document.getElementById('sort').value;
-  res.sort((a,b) => {
-    if (sort === 'next_action') {
+  const sort1 = document.getElementById('sort1').value;
+  const sort2 = document.getElementById('sort2').value;
+
+  function compareBy(key, a, b) {
+    if (key === 'next_action') {
       if (a.next_action_day && b.next_action_day) return a.next_action_day.localeCompare(b.next_action_day);
       if (a.next_action_day) return -1;
       if (b.next_action_day) return 1;
-      return (b.created_at||'').localeCompare(a.created_at||'');
+      return 0;
     }
-    if (sort === 'phase') return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
-    if (sort === 'created') return (b.created_at||'').localeCompare(a.created_at||'');
-    if (sort === 'job') return (a.job_name||'').localeCompare(b.job_name||'','ja');
-    if (sort === 'candidate') return (a.candidates?.name||'').localeCompare(b.candidates?.name||'','ja');
+    if (key === 'phase') return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
+    if (key === 'created') return (b.created_at||'').localeCompare(a.created_at||'');
+    if (key === 'job') return (a.job_name||'').localeCompare(b.job_name||'','ja');
+    if (key === 'candidate') return (a.candidates?.name||'').localeCompare(b.candidates?.name||'','ja');
     return 0;
+  }
+
+  res.sort((a,b) => {
+    const r1 = compareBy(sort1, a, b);
+    if (r1 !== 0) return r1;
+    return compareBy(sort2, a, b);
   });
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {

@@ -130,14 +130,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sa
     </div>
     <div class="top-bar">
       <span class="count" id="count"></span>
-      <div class="sort-wrap">
-        <label>並び替え:</label>
-        <select id="sort" onchange="render()">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666">
+        <label>第1ソート:</label>
+        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
           <option value="offer">承諾率スコア</option>
           <option value="salary">年収</option>
           <option value="wlb">WLB</option>
           <option value="tech">技術力</option>
+          <option value="autonomy">裁量</option>
+          <option value="social">社会貢献</option>
+          <option value="brand">ネームバリュー</option>
+          <option value="tier">Tier</option>
           <option value="name">企業名</option>
+        </select>
+        <label>第2ソート:</label>
+        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+          <option value="name">企業名</option>
+          <option value="offer">承諾率スコア</option>
+          <option value="salary">年収</option>
+          <option value="wlb">WLB</option>
+          <option value="tech">技術力</option>
+          <option value="autonomy">裁量</option>
+          <option value="social">社会貢献</option>
+          <option value="brand">ネームバリュー</option>
+          <option value="tier">Tier</option>
         </select>
       </div>
     </div>
@@ -147,8 +163,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sa
 
 <script>
 // ★ここにSupabaseの情報を入力
-const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -250,10 +266,22 @@ function render() {
     return true;
   });
 
+  const sort1 = document.getElementById('sort1').value;
+  const sort2 = document.getElementById('sort2').value;
+
+  const SCORE_MAP = {offer:'score_offer',salary:'score_salary',wlb:'score_wlb',tech:'score_tech',autonomy:'score_autonomy',social:'score_social',brand:'score_brand'};
+
+  function compareCompBy(key, a, b) {
+    if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
+    if (key === 'tier') return (a.tier||99) - (b.tier||99);
+    if (SCORE_MAP[key]) return (b[SCORE_MAP[key]]||0) - (a[SCORE_MAP[key]]||0);
+    return 0;
+  }
+
   res.sort((a,b) => {
-    if (sort === 'name') return (a.name||'').localeCompare(b.name||'', 'ja');
-    const key = {offer:'score_offer',salary:'score_salary',wlb:'score_wlb',tech:'score_tech'}[sort];
-    return (b[key]||0)-(a[key]||0);
+    const r1 = compareCompBy(sort1, a, b);
+    if (r1 !== 0) return r1;
+    return compareCompBy(sort2, a, b);
   });
 
   document.getElementById('count').textContent = res.length + '社';
