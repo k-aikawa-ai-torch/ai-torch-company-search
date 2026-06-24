@@ -115,6 +115,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <select id="sort" onchange="render()">
           <option value="next_action">NextAction日</option>
           <option value="phase">フェーズ</option>
+          <option value="candidate">候補者名</option>
           <option value="created">登録日</option>
           <option value="job">求人名</option>
         </select>
@@ -300,6 +301,7 @@ function render() {
     if (sort === 'phase') return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
     if (sort === 'created') return (b.created_at||'').localeCompare(a.created_at||'');
     if (sort === 'job') return (a.job_name||'').localeCompare(b.job_name||'','ja');
+    if (sort === 'candidate') return (a.candidates?.name||'').localeCompare(b.candidates?.name||'','ja');
     return 0;
   });
   document.getElementById('count').textContent = res.length + '件';
