@@ -119,6 +119,7 @@ tr:hover td{background:#fafaf8}
         <option value="終了_辞退">終了_辞退</option>
         <option value="終了_不合格">終了_不合格</option>
       </select>
+      <button id="selection-mode-btn" onclick="toggleSelectionMode()" style="padding:0 14px;height:36px;border-radius:8px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;font-size:13px;cursor:pointer">選考中のみ</button>
     </div>
     <div class="top-bar">
       <span class="count" id="count"></span>
@@ -171,9 +172,29 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let DATA = [];
 let currentMember = '全員';
 let selectedPhase = '';
+let selectionModeActive = true;
 let sortCol = 'next_action';
 
 const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+const SELECTION_PHASES = ['書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜'];
+let selectionModeActive = true;
+
+function toggleSelectionMode() {
+  selectionModeActive = !selectionModeActive;
+  const btn = document.getElementById('selection-mode-btn');
+  if (selectionModeActive) {
+    btn.style.background = '#1a1a1a';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1a1a1a';
+  } else {
+    btn.style.background = '#fff';
+    btn.style.color = '#1a1a1a';
+    btn.style.borderColor = '#ddd';
+  }
+  selectedPhase = '';
+  renderFunnel();
+  render();
+}
 
 const MEMBER_MAP = {
   '相川': 'aikawa_kenta',
@@ -247,6 +268,7 @@ function getFiltered() {
       if (p.members?.name !== memberName) return false;
     }
     if (statusFilter && p.status !== statusFilter) return false;
+    if (selectionModeActive && !selectedPhase && !SELECTION_PHASES.includes(p.phase)) return false;
     if (selectedPhase && p.phase !== selectedPhase) return false;
     if (q && !(p.job_name||'').toLowerCase().includes(q) && !(p.memo||'').toLowerCase().includes(q)) return false;
     return true;
