@@ -402,18 +402,25 @@ function renderDetail(c, pipelines) {
   const isToday = c.next_action_day === todayStr;
   const isOverdue = c.next_action_day && c.next_action_day < todayStr;
 
-  const pipelineHtml = pipelines.length > 0 ? `
-    <table class="pipeline-mini-table">
-      <thead><tr><th>求人名</th><th>フェーズ</th><th>NextAction日</th><th>メモ</th></tr></thead>
+  const pipelineHtml = `
+    <div style="margin-bottom:8px;text-align:right">
+      <button onclick="openPipelineAdd('${id}')" style="padding:4px 12px;font-size:12px;border:1px solid #1a1a1a;border-radius:6px;background:#1a1a1a;color:#fff;cursor:pointer">＋ 求人追加</button>
+    </div>
+    ${pipelines.length > 0 ? `<table class="pipeline-mini-table">
+      <thead><tr><th>求人名</th><th>フェーズ</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead>
       <tbody>
         ${pipelines.map(p => `<tr>
-          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.job_name||'').replace(/\n/g,' ')}</td>
+          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.job_name||'').replace(/
+/g,' ')}</td>
           <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>
           <td style="white-space:nowrap">${fmtDate(p.next_action_day)}</td>
-          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">${(p.memo||'').replace(/\n/g,' ')||'-'}</td>
+          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">${(p.memo||'').replace(/
+/g,' ')||'-'}</td>
+          <td><button onclick="openPipelineEdit('${p.id}')" style="padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer">編集</button></td>
         </tr>`).join('')}
       </tbody>
-    </table>` : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
+    </table>` : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>'}
+    `;
 
   const memoHtml = c.memo
     ? `<div class="markdown-preview">${marked.parse(c.memo)}</div>`
