@@ -391,6 +391,8 @@ function renderDetail(c, pipelines) {
       pipelineRows += '<tr>' +
         '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
         '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
+'<td style="color:#666">' + (p.status||'-') + '</td>' +
+'<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
         '<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
         '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.memo||'').replace(/\n/g,' ') + '</td>' +
         '<td><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">編集</button></td>' +
@@ -399,7 +401,7 @@ function renderDetail(c, pipelines) {
   }
 
   const pipelineTable = pipelines.length > 0
-    ? '<table class="pipeline-mini-table"><thead><tr><th>求人名</th><th>フェーズ</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    ? '<table class="pipeline-mini-table"><thead><tr><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
     : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
 
   document.getElementById('modal-detail').innerHTML =
