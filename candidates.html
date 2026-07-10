@@ -742,21 +742,36 @@ async function loadCandidateFiles(candidateId) {
 
   var fileSection = document.createElement('div');
   fileSection.id = 'file-section';
-  fileSection.innerHTML =
-    '<div class="section-title">ファイル</div>' +
+  var uploadAreaHtml = '<div class="section-title">ファイル</div>' +
     '<div id="file-list" class="file-list"><div style="font-size:12px;color:#aaa">読み込み中…</div></div>' +
-    '<div class="file-upload-area" id="file-upload-area" onclick="document.getElementById('file-input').click()" ' +
-    'ondragover="event.preventDefault();this.classList.add('dragover')" ' +
-    'ondragleave="this.classList.remove('dragover')" ' +
-    'ondrop="handleFileDrop(event,'' + candidateId + '')">' +
+    '<div class="file-upload-area" id="file-upload-area">' +
     '<p>クリックまたはドラッグ＆ドロップでアップロード</p>' +
     '<p style="font-size:11px;color:#bbb">PDF・Word・画像など</p>' +
-    '<button class="file-upload-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">ファイルを選択</button>' +
+    '<button class="file-upload-btn" id="file-select-btn">ファイルを選択</button>' +
     '<div class="upload-progress" id="upload-progress"></div>' +
     '</div>' +
-    '<input type="file" id="file-input" style="display:none" multiple onchange="handleFileSelect(event,'' + candidateId + '')">';
+    '<input type="file" id="file-input" style="display:none" multiple>';
+  fileSection.innerHTML = uploadAreaHtml;
 
   detailEl.appendChild(fileSection);
+
+  // イベントリスナーを設定
+  var uploadArea = document.getElementById('file-upload-area');
+  var fileInput = document.getElementById('file-input');
+  var fileSelectBtn = document.getElementById('file-select-btn');
+
+  if (fileSelectBtn) {
+    fileSelectBtn.addEventListener('click', function() { fileInput.click(); });
+  }
+  if (uploadArea) {
+    uploadArea.addEventListener('click', function() { fileInput.click(); });
+    uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
+    uploadArea.addEventListener('drop', function(e) { handleFileDrop(e, candidateId); });
+  }
+  if (fileInput) {
+    fileInput.addEventListener('change', function(e) { handleFileSelect(e, candidateId); });
+  }
 
   // ファイル一覧を取得
   await refreshFileList(candidateId);
