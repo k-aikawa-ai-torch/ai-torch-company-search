@@ -7,37 +7,31 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
-#lock-screen{position:fixed;inset:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;z-index:9999}
-#lock-box{background:#fff;border-radius:12px;padding:36px 40px;width:320px;text-align:center}
+body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#F2F0E9;color:#1E211D;min-height:100vh}
+#lock-screen{position:fixed;inset:0;background:#1E211D;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#F2F0E9;border-radius:4px;padding:36px 40px;width:320px;text-align:center}
 #lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
-#lock-box p{font-size:13px;color:#888;margin-bottom:20px}
-#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:10px}
-#lock-box input:focus{outline:none;border-color:#888}
-#lock-box button{width:100%;height:40px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
-#lock-error{color:#c00;font-size:12px;margin-top:8px;min-height:18px}
+#lock-box p{font-size:13px;color:#8A8C7E;margin-bottom:20px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #d9d6c9;border-radius:4px;font-size:15px;margin-bottom:10px;background:#fff}
+#lock-box input:focus{outline:none;border-color:#B8621B}
+#lock-box button{width:100%;height:40px;background:#1E211D;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
+#lock-error{color:#B8621B;font-size:12px;margin-top:8px;min-height:18px}
 #app{display:none}
-.header{background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.header h1{font-size:15px;font-weight:500}
-.badge{background:#3a3a3a;font-size:11px;padding:2px 8px;border-radius:4px;color:#aaa}
-.member-tabs{display:flex;gap:4px;margin-left:auto}
-.member-tab{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid #444;color:#aaa;background:transparent;transition:all 0.15s}
-.member-tab.active{background:#fff;color:#1a1a1a;border-color:#fff}
 .main{max-width:1100px;margin:0 auto;padding:16px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
-.filters input{height:36px;padding:0 12px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
-.filters select{height:36px;padding:0 10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px}
+.filters input{height:36px;padding:0 12px;border:1px solid #d9d6c9;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
+.filters select{height:36px;padding:0 10px;border:1px solid #d9d6c9;border-radius:8px;background:#fff;font-size:13px}
 .filter-btn{padding:0 14px;height:36px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s}
-.filter-btn.on{background:#1a1a1a;color:#fff;border:1px solid #1a1a1a}
-.filter-btn.off{background:#fff;color:#1a1a1a;border:1px solid #ddd}
+.filter-btn.on{background:#1E211D;color:#fff;border:1px solid #1E211D}
+.filter-btn.off{background:#fff;color:#1E211D;border:1px solid #d9d6c9}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
-.count{font-size:13px;color:#888}
+.count{font-size:13px;color:#8A8C7E}
 .sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
-.sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff}
+.sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #d9d6c9;border-radius:6px;background:#fff}
 .table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e8e8e8;font-size:12px}
-th{background:#f9f9f7;font-size:11px;font-weight:500;color:#888;padding:8px 12px;text-align:left;border-bottom:1px solid #e8e8e8;white-space:nowrap}
-td{padding:8px 12px;border-bottom:1px solid #f5f5f0;vertical-align:middle}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #d9d6c9;font-size:12px}
+th{background:#f9f9f7;font-size:11px;font-weight:500;color:#8A8C7E;padding:8px 12px;text-align:left;border-bottom:1px solid #d9d6c9;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #F2F0E9;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafaf8;cursor:pointer}
 .phase-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;white-space:nowrap}
@@ -52,27 +46,28 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .overdue-badge{background:#feecec;color:#991a1a;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
 .soon-badge{background:#e8f4fd;color:#0066cc;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
 .funnel-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:16px}
-.funnel-item{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;transition:all 0.15s}
-.funnel-item:hover{border-color:#bbb}
-.funnel-item.active{border-color:#1a1a1a;background:#1a1a1a}
+.funnel-item{background:#fff;border:1px solid #d9d6c9;border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;transition:all 0.15s}
+.funnel-item:hover{border-color:#B8621B}
+.funnel-item.active{border-color:#1E211D;background:#1E211D}
 .funnel-item.active .funnel-num,.funnel-item.active .funnel-label{color:#fff}
-.funnel-num{font-size:20px;font-weight:600;color:#1a1a1a}
-.funnel-label{font-size:10px;color:#888;margin-top:2px}
+.funnel-num{font-size:20px;font-weight:600;color:#1E211D}
+.funnel-label{font-size:10px;color:#8A8C7E;margin-top:2px}
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
 #modal.open{display:flex}
 #modal-box{background:#fff;border-radius:12px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
 #modal-box h2{font-size:16px;font-weight:500;margin-bottom:4px}
-.modal-subtitle{font-size:13px;color:#888;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
-.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#888}
+.modal-subtitle{font-size:13px;color:#8A8C7E;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#8A8C7E}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
-.detail-item{padding:6px 0;border-bottom:1px solid #f5f5f0}
+.detail-item{padding:6px 0;border-bottom:1px solid #F2F0E9}
 .detail-label{font-size:10px;color:#aaa;margin-bottom:2px}
-.detail-value{font-size:13px;color:#1a1a1a}
+.detail-value{font-size:13px;color:#1E211D}
 .detail-full{grid-column:1/-1}
-.memo-box{background:#f9f9f7;border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-top:4px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6}
-.loading{text-align:center;padding:40px;color:#888;font-size:14px}
+.memo-box{background:#f9f9f7;border:1px solid #d9d6c9;border-radius:8px;padding:12px;margin-top:4px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6}
+.loading{text-align:center;padding:40px;color:#8A8C7E;font-size:14px}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
 </style>
+<link rel="stylesheet" href="assets/shared.css">
 </head>
 <body>
 <div id="lock-screen">
@@ -87,17 +82,27 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 </div>
 
 <div id="app">
-  <div class="header">
-    <h1>AI torch パイプライン</h1>
-    <span class="badge" id="header-count">読み込み中…</span>
-    <div class="member-tabs">
-      <button class="member-tab active" onclick="setMember('全員',this)">全員</button>
-      <button class="member-tab" onclick="setMember('相川',this)">相川</button>
-      <button class="member-tab" onclick="setMember('永井',this)">永井</button>
-      <button class="member-tab" onclick="setMember('會澤',this)">會澤</button>
+  <nav class="app-sidebar">
+    <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <a class="sb-item" href="index.html"><span class="sb-icon">⌂</span>Home</a>
+    <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span>企業検索</a>
+    <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span>候補者管理</a>
+    <a class="sb-item active" href="pipeline.html"><span class="sb-icon">◎</span>パイプライン</a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html"><span class="sb-icon">▤</span>ダッシュボード</a>
+    <div class="sb-spacer"></div>
+    <div class="sb-item" onclick="doLogout()"><span class="sb-icon">⏻</span>ログアウト</div>
+  </nav>
+  <div class="app-body">
+    <div class="top-strip">
+      <h1 class="brand-serif">AI torch パイプライン</h1>
+      <span class="badge" id="header-count">読み込み中…</span>
+      <div class="member-tabs">
+        <button class="member-tab active" onclick="setMember('全員',this)">全員</button>
+        <button class="member-tab" onclick="setMember('相川',this)">相川</button>
+        <button class="member-tab" onclick="setMember('永井',this)">永井</button>
+        <button class="member-tab" onclick="setMember('會澤',this)">會澤</button>
+      </div>
     </div>
-    <span class="badge" style="cursor:pointer" onclick="doLogout()">ログアウト</span>
-  </div>
   <div class="main">
     <div class="funnel-row" id="funnel"></div>
     <div class="filters">
@@ -145,6 +150,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <tbody id="tbody"><tr><td colspan="7" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
+  </div>
   </div>
 </div>
 
@@ -329,7 +335,7 @@ function render() {
     const job = (p.job_name||'').replace(/\n/g,' ').substring(0,25);
     const memo = (p.memo||'').replace(/\n/g,' ');
     return `<tr onclick="openModal('${p.id}')">
-      <td style="color:#888;font-size:11px">${p.members?.display_name||'-'}</td>
+      <td style="color:#8A8C7E;font-size:11px">${p.members?.display_name||'-'}</td>
       <td><strong>${p.candidates?.name||'-'}</strong></td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${job}</td>
       <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>

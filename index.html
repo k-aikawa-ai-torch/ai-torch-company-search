@@ -21,17 +21,9 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,sans-serif;background:#F2F0
 #lock-error{color:#B8621B;font-size:12px;margin-top:8px;min-height:18px}
 
 #app{display:none}
-.layout{display:flex;min-height:100vh}
-.sidebar{width:64px;background:#EAE7DC;border-right:1px solid #d9d6c9;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:16px;flex-shrink:0}
-.sidebar .logo{width:34px;height:34px;border-radius:50%;overflow:hidden;border:1px solid #1E211D;margin-bottom:6px}
-.sidebar .logo img{width:100%;height:100%;object-fit:cover;display:block}
-.side-icon{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8A8C7E;text-decoration:none}
-.side-icon.active{background:#B8621B22;color:#B8621B}
-.side-icon:hover:not(.active){background:#dedad0;color:#1E211D}
-.side-spacer{flex:1}
-.side-icon.logout{color:#8A8C7E;cursor:pointer;font-size:13px}
+.app-body{padding-left:64px}
 
-.main{flex:1;padding:40px 44px;max-width:920px}
+.main{padding:40px 44px;max-width:920px}
 .topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
 .brand{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:0.1em;color:#8A8C7E}
 .user{display:flex;align-items:center;gap:10px;font-size:12px;color:#1E211D;cursor:pointer}
@@ -61,14 +53,13 @@ h1 span{color:#B8621B}
 .tile-desc{font-size:12.5px;color:#8A8C7E;line-height:1.6}
 
 @media (max-width:700px){
-  .layout{flex-direction:column}
-  .sidebar{width:100%;flex-direction:row;padding:12px 16px;gap:14px}
-  .side-spacer{display:none}
+  .app-body{padding-left:0;padding-top:56px}
   .main{padding:28px 20px}
   .status-strip{grid-template-columns:repeat(2,1fr)}
   .grid{grid-template-columns:1fr}
 }
 </style>
+<link rel="stylesheet" href="assets/shared.css">
 </head>
 <body>
 
@@ -84,19 +75,18 @@ h1 span{color:#B8621B}
 </div>
 
 <div id="app">
-  <div class="layout">
-    <div class="sidebar">
-      <div class="logo"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></div>
-      <a class="side-icon active" href="index.html" title="Home">⌂</a>
-      <a class="side-icon" href="companies.html" title="企業検索">◧</a>
-      <a class="side-icon" href="candidates.html" title="候補者管理">☰</a>
-      <a class="side-icon" href="pipeline.html" title="パイプライン">◎</a>
-      <a class="side-icon" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html" title="ダッシュボード">◎</a>
-      <div class="side-spacer"></div>
-      <div class="side-icon logout" onclick="logout()" title="ログアウト">⏻</div>
-    </div>
+  <nav class="app-sidebar">
+    <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <a class="sb-item active" href="index.html"><span class="sb-icon">⌂</span>Home</a>
+    <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span>企業検索</a>
+    <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span>候補者管理</a>
+    <a class="sb-item" href="pipeline.html"><span class="sb-icon">◎</span>パイプライン</a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html"><span class="sb-icon">▤</span>ダッシュボード</a>
+    <div class="sb-spacer"></div>
+    <div class="sb-item" onclick="logout()"><span class="sb-icon">⏻</span>ログアウト</div>
+  </nav>
 
-    <div class="main">
+    <div class="app-body main">
       <div class="topline">
         <div class="brand">AI TORCH — 業務システム</div>
         <div class="user" onclick="logout()"><span class="user-avatar"><img src="assets/ohagi-1.png" alt="おはぎ"></span><span id="user-label">読み込み中…</span></div>
@@ -147,7 +137,6 @@ h1 span{color:#B8621B}
         </a>
       </div>
     </div>
-  </div>
 </div>
 
 <script>
