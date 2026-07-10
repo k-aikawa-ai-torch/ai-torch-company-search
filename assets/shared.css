@@ -24,6 +24,8 @@ body{
 .app-sidebar .sb-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .app-sidebar .sb-item{display:flex;align-items:center;gap:13px;width:100%;padding:10px 0 10px 15px;color:var(--muted);text-decoration:none;font-size:13px;white-space:nowrap;cursor:pointer;background:none;border:none;font-family:'Zen Kaku Gothic New',sans-serif}
 .app-sidebar .sb-item .sb-icon{width:20px;text-align:center;font-size:16px;flex-shrink:0}
+.app-sidebar .sb-item .sb-label{opacity:0;transition:opacity 0.12s ease}
+.app-sidebar:hover .sb-item .sb-label{opacity:1}
 .app-sidebar .sb-item:hover{background:#dedad0;color:var(--ink)}
 .app-sidebar .sb-item.active{color:var(--ember)}
 .app-sidebar .sb-item.active .sb-icon{color:var(--ember)}
