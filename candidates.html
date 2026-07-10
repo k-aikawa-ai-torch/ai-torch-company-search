@@ -95,6 +95,18 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
 .mini-btn{padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
 .add-job-btn{padding:4px 12px;font-size:12px;border:1px solid #1a1a1a;border-radius:6px;background:#1a1a1a;color:#fff;cursor:pointer}
+.file-list{margin-top:8px}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #e8e8e8;border-radius:6px;margin-bottom:4px}
+.file-item a{font-size:12px;color:#1a1a1a;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item a:hover{text-decoration:underline}
+.file-item .file-type{font-size:10px;color:#888;white-space:nowrap}
+.file-delete-btn{padding:1px 6px;font-size:11px;border:1px solid #f5c0c0;border-radius:4px;background:#feecec;color:#991a1a;cursor:pointer;white-space:nowrap}
+.file-upload-area{border:2px dashed #ddd;border-radius:8px;padding:16px;text-align:center;cursor:pointer;margin-top:8px;transition:border-color 0.15s}
+.file-upload-area:hover{border-color:#888}
+.file-upload-area.dragover{border-color:#1a1a1a;background:#f9f9f7}
+.file-upload-area p{font-size:12px;color:#888;margin-bottom:6px}
+.file-upload-btn{padding:4px 12px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer}
+.upload-progress{font-size:12px;color:#2d6a4f;margin-top:4px}
 </style>
 </head>
 <body>
@@ -391,8 +403,7 @@ function renderDetail(c, pipelines) {
       pipelineRows += '<tr>' +
         '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
         '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
-'<td style="color:#666">' + (p.status||'-') + '</td>' +
-'<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
+        '<td style="color:#666;font-size:11px">' + (p.status||'-') + '</td>' +
         '<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
         '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.memo||'').replace(/\n/g,' ') + '</td>' +
         '<td><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">編集</button></td>' +
@@ -722,6 +733,99 @@ function closePipelineModal() {
 document.getElementById('pipeline-modal').addEventListener('click', function(e) {
   if (e.target === document.getElementById('pipeline-modal')) closePipelineModal();
 });
+
+// ===== ファイル管理 =====
+async function loadCandidateFiles(candidateId) {
+  // ファイルセクションをDOMに追加
+  var detailEl = document.getElementById('modal-detail');
+  if (!detailEl) return;
+
+  var fileSection = document.createElement('div');
+  fileSection.id = 'file-section';
+  fileSection.innerHTML =
+    '<div class="section-title">ファイル</div>' +
+    '<div id="file-list" class="file-list"><div style="font-size:12px;color:#aaa">読み込み中…</div></div>' +
+    '<div class="file-upload-area" id="file-upload-area" onclick="document.getElementById('file-input').click()" ' +
+    'ondragover="event.preventDefault();this.classList.add('dragover')" ' +
+    'ondragleave="this.classList.remove('dragover')" ' +
+    'ondrop="handleFileDrop(event,'' + candidateId + '')">' +
+    '<p>クリックまたはドラッグ＆ドロップでアップロード</p>' +
+    '<p style="font-size:11px;color:#bbb">PDF・Word・画像など</p>' +
+    '<button class="file-upload-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">ファイルを選択</button>' +
+    '<div class="upload-progress" id="upload-progress"></div>' +
+    '</div>' +
+    '<input type="file" id="file-input" style="display:none" multiple onchange="handleFileSelect(event,'' + candidateId + '')">';
+
+  detailEl.appendChild(fileSection);
+
+  // ファイル一覧を取得
+  await refreshFileList(candidateId);
+}
+
+async function refreshFileList(candidateId) {
+  var listEl = document.getElementById('file-list');
+  if (!listEl) return;
+
+  var { data, error } = await sb.storage.from('candidates-files').list(candidateId);
+  if (error || !data || data.length === 0) {
+    listEl.innerHTML = '<div style="font-size:12px;color:#aaa;padding:4px 0">ファイルなし</div>';
+    return;
+  }
+
+  // 署名付きURL（60分有効）を取得
+  var paths = data.map(function(file) { return candidateId + '/' + file.name; });
+  var { data: signedUrls, error: signError } = await sb.storage.from('candidates-files').createSignedUrls(paths, 3600);
+  if (signError) {
+    listEl.innerHTML = '<div style="font-size:12px;color:#c00">ファイルURLの取得に失敗しました</div>';
+    return;
+  }
+
+  listEl.innerHTML = data.map(function(file, i) {
+    var ext = file.name.split('.').pop().toUpperCase();
+    var signedUrl = signedUrls && signedUrls[i] ? signedUrls[i].signedUrl : '#';
+    return '<div class="file-item">' +
+      '<span class="file-type">' + ext + '</span>' +
+      '<a href="' + signedUrl + '" target="_blank">' + file.name + '</a>' +
+      '<button class="file-delete-btn" onclick="deleteFile('' + candidateId + '','' + file.name + '')">削除</button>' +
+      '</div>';
+  }).join('');
+}
+
+async function handleFileSelect(event, candidateId) {
+  var files = Array.from(event.target.files);
+  await uploadFiles(files, candidateId);
+  event.target.value = '';
+}
+
+async function handleFileDrop(event, candidateId) {
+  event.preventDefault();
+  document.getElementById('file-upload-area').classList.remove('dragover');
+  var files = Array.from(event.dataTransfer.files);
+  await uploadFiles(files, candidateId);
+}
+
+async function uploadFiles(files, candidateId) {
+  var progress = document.getElementById('upload-progress');
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    if (progress) progress.textContent = file.name + ' をアップロード中…';
+    var path = candidateId + '/' + file.name;
+    var { error } = await sb.storage.from('candidates-files').upload(path, file, { upsert: true });
+    if (error) {
+      alert(file.name + ' のアップロードに失敗しました: ' + error.message);
+    }
+  }
+  if (progress) progress.textContent = '✅ アップロード完了';
+  setTimeout(function() { if (progress) progress.textContent = ''; }, 2000);
+  await refreshFileList(candidateId);
+}
+
+async function deleteFile(candidateId, fileName) {
+  if (!confirm(fileName + ' を削除してよいですか？')) return;
+  var { error } = await sb.storage.from('candidates-files').remove([candidateId + '/' + fileName]);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  await refreshFileList(candidateId);
+}
 </script>
 </body>
 </html>
