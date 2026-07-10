@@ -3,301 +3,216 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI torch 企業検索</title>
+<title>AI torch 業務システム</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
-#lock-screen{position:fixed;inset:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;z-index:9999}
-#lock-box{background:#fff;border-radius:12px;padding:36px 40px;width:320px;text-align:center}
-#lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
-#lock-box p{font-size:13px;color:#888;margin-bottom:20px}
-#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;text-align:center;letter-spacing:0.1em;margin-bottom:10px}
-#lock-box input:focus{outline:none;border-color:#888}
-#lock-box button{width:100%;height:40px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
-#lock-box button:hover{background:#333}
-#lock-error{color:#c00;font-size:12px;margin-top:8px;min-height:18px}
+body{font-family:'Zen Kaku Gothic New',-apple-system,sans-serif;background:#F2F0E9;color:#1E211D;min-height:100vh}
+
+#lock-screen{position:fixed;inset:0;background:#1E211D;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#F2F0E9;border-radius:4px;padding:40px 44px;width:320px;text-align:center}
+#lock-box h2{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin-bottom:6px}
+#lock-box p{font-size:12.5px;color:#8A8C7E;margin-bottom:22px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #d9d6c9;border-radius:4px;font-size:14px;margin-bottom:10px;background:#fff}
+#lock-box input:focus{outline:none;border-color:#B8621B}
+#lock-box button{width:100%;height:40px;background:#1E211D;color:#F2F0E9;border:none;border-radius:4px;font-size:14px;cursor:pointer;font-family:'Zen Kaku Gothic New',sans-serif}
+#lock-error{color:#B8621B;font-size:12px;margin-top:8px;min-height:18px}
+
 #app{display:none}
-.header{background:#1a1a1a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px}
-.header h1{font-size:16px;font-weight:500;letter-spacing:0.02em}
-.header .badge{background:#3a3a3a;font-size:12px;padding:3px 8px;border-radius:4px;color:#aaa}
-.main{max-width:900px;margin:0 auto;padding:16px}
-.search-bar{display:flex;gap:8px;margin-bottom:12px}
-.search-bar input{flex:1;height:40px;padding:0 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:14px;color:#1a1a1a}
-.search-bar input:focus{outline:none;border-color:#888}
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
-.filters select{height:34px;padding:0 10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;color:#1a1a1a}
-.score-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
-.score-filter select{height:30px;font-size:12px;padding:0 6px}
-.tag-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.tag{padding:5px 12px;border:1px solid #ddd;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#555;white-space:nowrap;transition:all 0.15s;user-select:none}
-.tag.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
-.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
-.count{font-size:13px;color:#888}
-.sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
-.sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff}
-.list{display:flex;flex-direction:column;gap:6px}
-.card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px 16px;transition:border-color 0.15s}
-.card:hover{border-color:#bbb}
-.card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer}
-.name{font-size:14px;font-weight:500;flex:1}
-.tier-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
-.t1{background:#eeedfe;color:#3c3489}
-.t2{background:#e1f5ee;color:#085041}
-.t3{background:#f1efe8;color:#444441}
-.tn{background:#f1f1f1;color:#888}
-.stopped-badge{padding:2px 8px;border-radius:10px;font-size:11px;background:#feecec;color:#991a1a}
-.notion-btn{padding:2px 10px;border-radius:8px;font-size:11px;background:#f3f0e8;color:#3d3929;text-decoration:none;border:1px solid #e0dbc8;white-space:nowrap;transition:background 0.15s}
-.notion-btn:hover{background:#e8e3d0}
-.card-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;cursor:pointer}
-.industry{font-size:12px;color:#888}
-.pill{padding:2px 8px;border-radius:8px;font-size:11px;background:#f5f5f0;color:#666}
-.scores{display:flex;gap:14px;flex-wrap:wrap;cursor:pointer}
-.score-item{display:flex;flex-direction:column;align-items:center;gap:2px}
-.score-label{font-size:10px;color:#aaa;text-align:center}
-.score-bar-wrap{width:32px;height:4px;background:#eee;border-radius:2px;overflow:hidden}
-.score-bar{height:4px;border-radius:2px;background:#4a7c59}
-.score-num{font-size:11px;color:#666}
-.detail{display:none;margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px}
-.card.open .detail{display:block}
-.bool-pill{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;background:#f0f7f2;color:#2d6a4f;margin:2px}
-.roles-text{font-size:12px;color:#666;margin-top:6px}
-.tech-text{font-size:12px;color:#999;margin-top:3px}
-.area-text{font-size:12px;color:#666;margin-top:3px}
-.loading{text-align:center;padding:40px;color:#888;font-size:14px}
-.error{text-align:center;padding:40px;color:#c00;font-size:14px}
-.update-info{font-size:11px;color:#aaa;text-align:right;margin-bottom:6px}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:64px;background:#EAE7DC;border-right:1px solid #d9d6c9;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:16px;flex-shrink:0}
+.sidebar .logo{width:34px;height:34px;border-radius:50%;overflow:hidden;border:1px solid #1E211D;margin-bottom:6px}
+.sidebar .logo img{width:100%;height:100%;object-fit:cover;display:block}
+.side-icon{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8A8C7E;text-decoration:none}
+.side-icon.active{background:#B8621B22;color:#B8621B}
+.side-icon:hover:not(.active){background:#dedad0;color:#1E211D}
+.side-spacer{flex:1}
+.side-icon.logout{color:#8A8C7E;cursor:pointer;font-size:13px}
+
+.main{flex:1;padding:40px 44px;max-width:920px}
+.topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
+.brand{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:0.1em;color:#8A8C7E}
+.user{display:flex;align-items:center;gap:10px;font-size:12px;color:#1E211D;cursor:pointer}
+.user-avatar{width:28px;height:28px;border-radius:50%;overflow:hidden;border:1px solid #1E211D;flex-shrink:0}
+.user-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+
+h1{font-family:'Shippori Mincho',serif;font-size:27px;font-weight:700;margin-bottom:6px}
+h1 span{color:#B8621B}
+.sub{font-size:13px;color:#8A8C7E;margin-bottom:28px}
+
+.status-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.status-cell{background:#fff;border:1px solid #d9d6c9;border-radius:8px;padding:16px 18px}
+.status-cell.link{text-decoration:none;color:inherit;display:block;transition:border-color 0.15s}
+.status-cell.link:hover{border-color:#B8621B}
+.status-label{font-size:11px;color:#8A8C7E;margin-bottom:8px;letter-spacing:0.03em}
+.status-value{font-family:'Shippori Mincho',serif;font-size:21px;font-weight:700;color:#1E211D}
+.status-value.accent{color:#B8621B}
+
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.tile{background:#fff;border:1px solid #d9d6c9;border-radius:8px;padding:22px;text-decoration:none;color:inherit;transition:border-color 0.15s}
+.tile:hover{border-color:#B8621B}
+.tile-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.tile-icon{width:32px;height:32px;border-radius:50%;overflow:hidden;border:1px solid #d9d6c9;flex-shrink:0}
+.tile-icon img{width:100%;height:100%;object-fit:cover;display:block}
+.tile-tag{font-family:'Shippori Mincho',serif;font-size:11px;color:#8A8C7E;letter-spacing:0.05em}
+.tile-title{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin-bottom:6px}
+.tile-desc{font-size:12.5px;color:#8A8C7E;line-height:1.6}
+
+@media (max-width:700px){
+  .layout{flex-direction:column}
+  .sidebar{width:100%;flex-direction:row;padding:12px 16px;gap:14px}
+  .side-spacer{display:none}
+  .main{padding:28px 20px}
+  .status-strip{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
+
 <div id="lock-screen">
   <div id="lock-box">
-    <h2>AI torch 企業検索</h2>
-    <p>パスワードを入力してください</p>
-    <input type="password" id="pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPw()">
-    <button onclick="checkPw()">ログイン</button>
+    <h2>AI torch 業務システム</h2>
+    <p>メールアドレスとパスワードでログイン</p>
+    <input type="email" id="email-input" placeholder="メールアドレス">
+    <input type="password" id="pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">ログイン</button>
     <div id="lock-error"></div>
   </div>
 </div>
 
 <div id="app">
-  <div class="header">
-    <h1>AI torch 企業検索</h1>
-    <span class="badge" id="header-count">読み込み中…</span>
-  </div>
-  <div class="main">
-    <div class="update-info" id="update-info"></div>
-    <div class="search-bar">
-      <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="logo"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></div>
+      <a class="side-icon active" href="index.html" title="Home">⌂</a>
+      <a class="side-icon" href="companies.html" title="企業検索">◧</a>
+      <a class="side-icon" href="candidates.html" title="候補者管理">☰</a>
+      <a class="side-icon" href="pipeline.html" title="パイプライン">◎</a>
+      <a class="side-icon" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html" title="ダッシュボード">◎</a>
+      <div class="side-spacer"></div>
+      <div class="side-icon logout" onclick="logout()" title="ログアウト">⏻</div>
     </div>
-    <div class="filters">
-      <select id="tier" onchange="render()">
-        <option value="">全Tier</option>
-        <option value="1">Tier 1</option>
-        <option value="2">Tier 2</option>
-        <option value="3">Tier 3</option>
-      </select>
-      <select id="industry" onchange="render()"></select>
-      <select id="role" onchange="render()"></select>
-      <div class="score-filter">
-        <span>年収≥</span>
-        <select id="min_salary" onchange="render()">
-          <option value="0">-</option>
-          <option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-        </select>
-        <span>WLB≥</span>
-        <select id="min_wlb" onchange="render()">
-          <option value="0">-</option>
-          <option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-        </select>
-        <span>技術力≥</span>
-        <select id="min_tech" onchange="render()">
-          <option value="0">-</option>
-          <option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-        </select>
+
+    <div class="main">
+      <div class="topline">
+        <div class="brand">AI TORCH — 業務システム</div>
+        <div class="user" onclick="logout()"><span class="user-avatar"><img src="assets/ohagi-1.png" alt="おはぎ"></span><span id="user-label">読み込み中…</span></div>
+      </div>
+
+      <h1 id="greeting">おかえりなさい</h1>
+      <div class="sub" id="datestr"></div>
+
+      <div class="status-strip">
+        <a class="status-cell link" href="companies.html">
+          <div class="status-label">企業数</div>
+          <div class="status-value" id="count-companies">—</div>
+        </a>
+        <a class="status-cell link" href="candidates.html">
+          <div class="status-label">候補者数</div>
+          <div class="status-value" id="count-candidates">—</div>
+        </a>
+        <a class="status-cell link" href="pipeline.html">
+          <div class="status-label">パイプライン件数</div>
+          <div class="status-value" id="count-pipeline">—</div>
+        </a>
+        <a class="status-cell link" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html">
+          <div class="status-label">売上・KPI詳細</div>
+          <div class="status-value accent">ダッシュボードへ →</div>
+        </a>
+      </div>
+
+      <div class="grid">
+        <a class="tile" href="companies.html">
+          <div class="tile-top"><span class="tile-tag">01 — 企業</span><span class="tile-icon"><img src="assets/ohagi-1.png" alt=""></span></div>
+          <div class="tile-title">企業検索</div>
+          <div class="tile-desc">クライアント企業の情報検索・フィルタリング</div>
+        </a>
+        <a class="tile" href="candidates.html">
+          <div class="tile-top"><span class="tile-tag">02 — 候補者</span><span class="tile-icon"><img src="assets/ohagi-2.png" alt=""></span></div>
+          <div class="tile-title">候補者管理</div>
+          <div class="tile-desc">候補者プロフィール・面談メモの管理</div>
+        </a>
+        <a class="tile" href="pipeline.html">
+          <div class="tile-top"><span class="tile-tag">03 — 進捗</span><span class="tile-icon"><img src="assets/ohagi-3.png" alt=""></span></div>
+          <div class="tile-title">パイプライン</div>
+          <div class="tile-desc">選考進捗・ステータスの管理</div>
+        </a>
+        <a class="tile" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html">
+          <div class="tile-top"><span class="tile-tag">04 — KPI</span><span class="tile-icon"><img src="assets/ohagi-4.png" alt=""></span></div>
+          <div class="tile-title">ダッシュボード</div>
+          <div class="tile-desc">KPI・売上見込みの集計</div>
+        </a>
       </div>
     </div>
-    <div class="tag-filters">
-      <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
-      <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
-      <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
-      <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
-      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
-      <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
-      <span class="tag" data-key="aikawa" onclick="toggleTag(this)">相川PKG</span>
-      <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
-    </div>
-    <div class="top-bar">
-      <span class="count" id="count"></span>
-      <div class="sort-wrap">
-        <label>並び替え:</label>
-        <select id="sort" onchange="render()">
-          <option value="offer">承諾率スコア</option>
-          <option value="salary">年収</option>
-          <option value="wlb">WLB</option>
-          <option value="tech">技術力</option>
-          <option value="name">企業名</option>
-        </select>
-      </div>
-    </div>
-    <div id="list"><div class="loading">データを読み込み中…</div></div>
   </div>
 </div>
 
 <script>
-// ★パスワードをここで設定
-const PASSWORD = 'aitorch2024';
-const SESSION_KEY = 'aitorch_auth';
-const DATA_URL = 'https://raw.githubusercontent.com/k-aikawa-ai-torch/ai-torch-company-search/main/companies.json';
+const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
 
-function checkPw() {
-  const input = document.getElementById('pw-input').value;
-  if (input === PASSWORD) {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    document.getElementById('lock-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    loadData();
-  } else {
-    document.getElementById('lock-error').textContent = 'パスワードが違います';
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-input').focus();
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function login() {
+  const email = document.getElementById('email-input').value;
+  const password = document.getElementById('pw-input').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います';
+    return;
   }
+  showApp(data.session.user.email);
 }
 
-if (sessionStorage.getItem(SESSION_KEY) === '1') {
+async function logout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function showApp(email) {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  loadData();
-} else {
-  document.getElementById('pw-input').focus();
+  document.getElementById('user-label').textContent = email;
+
+  const name = (email.split('@')[0] || '').toLowerCase();
+  const label = name.includes('aikawa') ? '相川' : name.includes('nagai') ? '永井' : name.includes('aizawa') ? '會澤' : email;
+  document.getElementById('greeting').innerHTML = `おかえりなさい、<span>${label}</span>さん`;
+
+  const now = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('datestr').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+
+  loadCounts();
 }
 
-let DATA = [];
-let activeTags = new Set();
-
-async function loadData() {
-  try {
-    const res = await fetch(DATA_URL + '?t=' + Date.now());
-    if (!res.ok) throw new Error('fetch failed');
-    const json = await res.json();
-    DATA = json.companies || [];
-    const updated = json.updated_at ? new Date(json.updated_at).toLocaleString('ja-JP') : '';
-    document.getElementById('update-info').textContent = updated ? `最終更新: ${updated}` : '';
-    document.getElementById('header-count').textContent = DATA.length + '社';
-    initSelects();
-    render();
-  } catch(e) {
-    document.getElementById('list').innerHTML = '<div class="error">データの読み込みに失敗しました。<br>companies.jsonがリポジトリに存在するか確認してください。</div>';
+async function loadCounts() {
+  const targets = [
+    ['companies', 'count-companies'],
+    ['candidates', 'count-candidates'],
+    ['pipeline', 'count-pipeline'],
+  ];
+  for (const [table, elId] of targets) {
+    try {
+      const { count, error } = await sb.from(table).select('*', { count: 'exact', head: true });
+      document.getElementById(elId).textContent = error ? '—' : count.toLocaleString();
+    } catch (e) {
+      document.getElementById(elId).textContent = '—';
+    }
   }
 }
 
-function initSelects() {
-  const allIndustries = [...new Set(DATA.flatMap(c => c.industry.split(/,\s*/)))].filter(Boolean).sort();
-  const allRoles = [...new Set(DATA.flatMap(c => (c.roles||'').split(/,\s*/)))].filter(Boolean).sort();
-  const indSel = document.getElementById('industry');
-  const roleSel = document.getElementById('role');
-  indSel.innerHTML = '<option value="">全業界</option>';
-  roleSel.innerHTML = '<option value="">全職種</option>';
-  allIndustries.forEach(i => { const o = document.createElement('option'); o.value=i; o.textContent=i; indSel.appendChild(o); });
-  allRoles.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; roleSel.appendChild(o); });
-}
-
-function toggleTag(el) {
-  const k = el.dataset.key;
-  activeTags.has(k) ? activeTags.delete(k) : activeTags.add(k);
-  el.classList.toggle('on');
-  render();
-}
-
-function toggleCard(el) {
-  el.closest('.card').classList.toggle('open');
-}
-
-function scoreBar(val) {
-  if (val === null || val === undefined) return '<span style="font-size:11px;color:#ccc">-</span>';
-  const pct = Math.round((val / 10) * 100);
-  return `<div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%"></div></div><span class="score-num">${val}</span>`;
-}
-
-function render() {
-  const q = (document.getElementById('q').value || '').toLowerCase();
-  const tier = document.getElementById('tier').value;
-  const ind = document.getElementById('industry').value;
-  const role = document.getElementById('role').value;
-  const minSalary = +document.getElementById('min_salary').value;
-  const minWlb = +document.getElementById('min_wlb').value;
-  const minTech = +document.getElementById('min_tech').value;
-  const sort = document.getElementById('sort').value;
-  const showStopped = activeTags.has('stopped');
-
-  let res = DATA.filter(c => {
-    if (!showStopped && c.stopped) return false;
-    if (tier && c.tier !== tier) return false;
-    if (ind && !c.industry.split(/,\s*/).includes(ind)) return false;
-    if (role && !(c.roles||'').split(/,\s*/).includes(role)) return false;
-    if (minSalary && (c.score_salary === null || c.score_salary < minSalary)) return false;
-    if (minWlb && (c.score_wlb === null || c.score_wlb < minWlb)) return false;
-    if (minTech && (c.score_tech === null || c.score_tech < minTech)) return false;
-    for (const k of activeTags) {
-      if (k === 'stopped') continue;
-      if (!c[k]) return false;
-    }
-    if (q && !c.name.toLowerCase().includes(q) && !(c.tech||'').toLowerCase().includes(q) && !(c.roles||'').toLowerCase().includes(q) && !c.industry.toLowerCase().includes(q)) return false;
-    return true;
-  });
-
-  res.sort((a, b) => {
-    if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
-    const key = {offer:'score_offer',salary:'score_salary',wlb:'score_wlb',tech:'score_tech'}[sort];
-    return (b[key]||0) - (a[key]||0);
-  });
-
-  document.getElementById('count').textContent = res.length + '社';
-
-  const list = document.getElementById('list');
-  if (res.length === 0) { list.innerHTML = '<div class="loading">該当する企業がありません</div>'; return; }
-
-  list.innerHTML = res.map(c => {
-    const tb = c.tier==='1'?'t1':c.tier==='2'?'t2':c.tier==='3'?'t3':'tn';
-    const tierLabel = c.tier ? `Tier ${c.tier}` : '未分類';
-    const bools = [];
-    if(c.remote) bools.push('フルリモ');
-    if(c.global) bools.push('グローバル');
-    if(c.ai) bools.push('AI');
-    if(c.feeup) bools.push('FeeUP');
-    if(c.megaben) bools.push('メガベン');
-    if(c.senior) bools.push('50代可');
-    if(c.aikawa) bools.push('相川PKG');
-    const notionBtn = c.notion_url
-      ? `<a href="${c.notion_url}" target="_blank" onclick="event.stopPropagation()" class="notion-btn">📝 Notion</a>`
-      : '';
-    return `<div class="card">
-      <div class="card-top" onclick="toggleCard(this)">
-        <span class="name">${c.name}</span>
-        <span class="tier-badge ${tb}">${tierLabel}</span>
-        ${c.stopped ? '<span class="stopped-badge">採用停止</span>' : ''}
-        ${notionBtn}
-      </div>
-      <div class="card-meta" onclick="toggleCard(this)">
-        <span class="industry">${c.industry}</span>
-        ${c.acceptance_rate ? `<span class="pill">承諾率 ${c.acceptance_rate}</span>` : ''}
-      </div>
-      <div class="scores" onclick="toggleCard(this)">
-        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社会貢献',c.score_social]].map(([l,v]) =>
-          `<div class="score-item"><span class="score-label">${l}</span>${scoreBar(v)}</div>`
-        ).join('')}
-      </div>
-      <div class="detail">
-        ${bools.length ? `<div style="margin-bottom:6px">${bools.map(b=>`<span class="bool-pill">${b}</span>`).join('')}</div>` : ''}
-        ${c.roles ? `<div class="roles-text">職種: ${c.roles}</div>` : ''}
-        ${c.tech ? `<div class="tech-text">技術: ${c.tech}</div>` : ''}
-        ${c.area ? `<div class="area-text">エリア: ${c.area}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) {
+    showApp(session.user.email);
+  } else {
+    document.getElementById('email-input').focus();
+  }
+});
 </script>
 </body>
 </html>
