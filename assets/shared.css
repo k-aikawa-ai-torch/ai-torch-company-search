@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+:root{
+  --paper:#F2F0E9;
+  --ink:#1E211D;
+  --ember:#B8621B;
+  --border:#d9d6c9;
+  --muted:#8A8C7E;
+  --sidebar-bg:#EAE7DC;
+}
+
+body{
+  font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+}
+
+.brand-serif{font-family:'Shippori Mincho',serif}
+
+/* ---- sidebar (persistent, expands on hover) ---- */
+.app-sidebar{position:fixed;top:0;left:0;bottom:0;width:64px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:flex-start;padding:20px 0;gap:2px;z-index:900;overflow:hidden;transition:width 0.18s ease}
+.app-sidebar:hover{width:190px;box-shadow:2px 0 16px rgba(30,33,29,0.1)}
+.app-sidebar .sb-logo{display:block;width:34px;height:34px;border-radius:50%;overflow:hidden;border:1px solid var(--ink);margin:0 0 16px 15px;flex-shrink:0}
+.app-sidebar .sb-logo img{width:100%;height:100%;object-fit:cover;display:block}
+.app-sidebar .sb-item{display:flex;align-items:center;gap:13px;width:100%;padding:10px 0 10px 15px;color:var(--muted);text-decoration:none;font-size:13px;white-space:nowrap;cursor:pointer;background:none;border:none;font-family:'Zen Kaku Gothic New',sans-serif}
+.app-sidebar .sb-item .sb-icon{width:20px;text-align:center;font-size:16px;flex-shrink:0}
+.app-sidebar .sb-item:hover{background:#dedad0;color:var(--ink)}
+.app-sidebar .sb-item.active{color:var(--ember)}
+.app-sidebar .sb-item.active .sb-icon{color:var(--ember)}
+.app-sidebar .sb-spacer{flex:1}
+.app-body{padding-left:64px}
+
+/* ---- lock screen ---- */
+#lock-screen{background:var(--ink) !important}
+#lock-box{background:var(--paper) !important;border-radius:4px !important}
+#lock-box h2{font-family:'Shippori Mincho',serif;font-weight:700}
+#lock-box input:focus{border-color:var(--ember) !important}
+#lock-box button{font-family:'Zen Kaku Gothic New',sans-serif;border-radius:4px !important}
+#lock-error{color:var(--ember) !important}
+
+/* ---- shared top strip (replaces old dark .header) ---- */
+.top-strip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:18px 20px 0}
+.top-strip h1{font-family:'Shippori Mincho',serif;font-size:17px;font-weight:700;color:var(--ink)}
+.badge{background:#fff;border:1px solid var(--border);font-size:11px;padding:3px 10px;border-radius:20px;color:var(--muted)}
+
+/* ---- tabs (member/month) restyled for light top strip ---- */
+.member-tabs,.month-tabs{display:flex;gap:4px}
+.member-tab,.month-tab{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:#fff;transition:all 0.15s}
+.member-tab.active,.month-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
