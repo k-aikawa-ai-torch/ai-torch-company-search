@@ -95,6 +95,15 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
 .mini-btn{padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
 .add-job-btn{padding:4px 12px;font-size:12px;border:1px solid #1a1a1a;border-radius:6px;background:#1a1a1a;color:#fff;cursor:pointer}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #e8e8e8;border-radius:6px;margin-bottom:4px}
+.file-item a{font-size:12px;color:#1a1a1a;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item a:hover{text-decoration:underline}
+.file-item .file-ext{font-size:10px;color:#888;white-space:nowrap}
+.file-del-btn{padding:1px 6px;font-size:11px;border:1px solid #f5c0c0;border-radius:4px;background:#feecec;color:#991a1a;cursor:pointer}
+.upload-area{border:2px dashed #ddd;border-radius:8px;padding:16px;text-align:center;margin-top:8px;transition:border-color 0.15s;cursor:pointer}
+.upload-area:hover,.upload-area.over{border-color:#1a1a1a;background:#f9f9f7}
+.upload-area p{font-size:12px;color:#888;margin-bottom:6px}
+.upload-msg{font-size:12px;color:#2d6a4f;margin-top:4px;min-height:16px}
 .file-list{margin-top:8px}
 .file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #e8e8e8;border-radius:6px;margin-bottom:4px}
 .file-item a{font-size:12px;color:#1a1a1a;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -440,6 +449,8 @@ function renderDetail(c, pipelines) {
     '<div style="margin-bottom:8px;text-align:right"><button class="add-job-btn" onclick="openPipelineAdd(\'' + c.id + '\')">＋ 求人追加</button></div>' +
     pipelineTable +
     '<div style="margin-top:16px;text-align:right"><button class="btn-edit" onclick="setModalTab(\'edit\',document.querySelectorAll(\'.modal-tab\')[1])">✏️ 編集する</button></div>';
+
+  initFileSection(id);
 }
 
 function renderEditForm(c) {
@@ -734,112 +745,153 @@ document.getElementById('pipeline-modal').addEventListener('click', function(e) 
   if (e.target === document.getElementById('pipeline-modal')) closePipelineModal();
 });
 
-// ===== ファイル管理 =====
-async function loadCandidateFiles(candidateId) {
-  // ファイルセクションをDOMに追加
+
+
+// ===== ファイルアップロード =====
+var currentFilesCandidateId = null;
+
+function initFileSection(candidateId) {
+  currentFilesCandidateId = candidateId;
   var detailEl = document.getElementById('modal-detail');
   if (!detailEl) return;
 
-  var fileSection = document.createElement('div');
-  fileSection.id = 'file-section';
-  var uploadAreaHtml = '<div class="section-title">ファイル</div>' +
-    '<div id="file-list" class="file-list"><div style="font-size:12px;color:#aaa">読み込み中…</div></div>' +
-    '<div class="file-upload-area" id="file-upload-area">' +
-    '<p>クリックまたはドラッグ＆ドロップでアップロード</p>' +
-    '<p style="font-size:11px;color:#bbb">PDF・Word・画像など</p>' +
-    '<button class="file-upload-btn" id="file-select-btn">ファイルを選択</button>' +
-    '<div class="upload-progress" id="upload-progress"></div>' +
-    '</div>' +
-    '<input type="file" id="file-input" style="display:none" multiple>';
-  fileSection.innerHTML = uploadAreaHtml;
+  var sec = document.createElement('div');
+  sec.id = 'file-section';
 
-  detailEl.appendChild(fileSection);
+  var titleDiv = document.createElement('div');
+  titleDiv.className = 'section-title';
+  titleDiv.textContent = 'ファイル';
+  sec.appendChild(titleDiv);
 
-  // イベントリスナーを設定
-  var uploadArea = document.getElementById('file-upload-area');
-  var fileInput = document.getElementById('file-input');
-  var fileSelectBtn = document.getElementById('file-select-btn');
+  var listDiv = document.createElement('div');
+  listDiv.id = 'file-list';
+  listDiv.style.marginBottom = '8px';
+  listDiv.textContent = '読み込み中…';
+  listDiv.style.fontSize = '12px';
+  listDiv.style.color = '#aaa';
+  sec.appendChild(listDiv);
 
-  if (fileSelectBtn) {
-    fileSelectBtn.addEventListener('click', function() { fileInput.click(); });
-  }
-  if (uploadArea) {
-    uploadArea.addEventListener('click', function() { fileInput.click(); });
-    uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
-    uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
-    uploadArea.addEventListener('drop', function(e) { handleFileDrop(e, candidateId); });
-  }
-  if (fileInput) {
-    fileInput.addEventListener('change', function(e) { handleFileSelect(e, candidateId); });
-  }
+  var uploadDiv = document.createElement('div');
+  uploadDiv.className = 'upload-area';
+  uploadDiv.id = 'upload-area';
 
-  // ファイル一覧を取得
-  await refreshFileList(candidateId);
+  var p1 = document.createElement('p');
+  p1.textContent = 'クリックまたはドラッグ＆ドロップでアップロード';
+  uploadDiv.appendChild(p1);
+
+  var p2 = document.createElement('p');
+  p2.style.fontSize = '11px';
+  p2.style.color = '#bbb';
+  p2.textContent = 'PDF・Word・画像など';
+  uploadDiv.appendChild(p2);
+
+  var selBtn = document.createElement('button');
+  selBtn.className = 'file-upload-btn';
+  selBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer';
+  selBtn.textContent = 'ファイルを選択';
+  uploadDiv.appendChild(selBtn);
+
+  var msgDiv = document.createElement('div');
+  msgDiv.id = 'upload-msg';
+  msgDiv.className = 'upload-msg';
+  uploadDiv.appendChild(msgDiv);
+
+  var fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.id = 'file-input';
+  fileInput.multiple = true;
+  fileInput.style.display = 'none';
+  uploadDiv.appendChild(fileInput);
+
+  sec.appendChild(uploadDiv);
+  detailEl.appendChild(sec);
+
+  // イベント
+  selBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    fileInput.click();
+  });
+  uploadDiv.addEventListener('click', function() { fileInput.click(); });
+  uploadDiv.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    uploadDiv.classList.add('over');
+  });
+  uploadDiv.addEventListener('dragleave', function() {
+    uploadDiv.classList.remove('over');
+  });
+  uploadDiv.addEventListener('drop', function(e) {
+    e.preventDefault();
+    uploadDiv.classList.remove('over');
+    doUpload(Array.from(e.dataTransfer.files), candidateId);
+  });
+  fileInput.addEventListener('change', function(e) {
+    doUpload(Array.from(e.target.files), candidateId);
+    e.target.value = '';
+  });
+
+  loadFileList(candidateId);
 }
 
-async function refreshFileList(candidateId) {
-  var listEl = document.getElementById('file-list');
-  if (!listEl) return;
-
-  var { data, error } = await sb.storage.from('candidates-files').list(candidateId);
-  if (error || !data || data.length === 0) {
-    listEl.innerHTML = '<div style="font-size:12px;color:#aaa;padding:4px 0">ファイルなし</div>';
+async function loadFileList(candidateId) {
+  var listDiv = document.getElementById('file-list');
+  if (!listDiv) return;
+  var res = await sb.storage.from('candidates-files').list(candidateId);
+  var files = res.data || [];
+  if (!files.length) {
+    listDiv.innerHTML = '<span style="font-size:12px;color:#aaa">ファイルなし</span>';
     return;
   }
+  var paths = files.map(function(f) { return candidateId + '/' + f.name; });
+  var sRes = await sb.storage.from('candidates-files').createSignedUrls(paths, 3600);
+  var signedUrls = sRes.data || [];
+  listDiv.innerHTML = '';
+  files.forEach(function(f, i) {
+    var url = signedUrls[i] ? signedUrls[i].signedUrl : '#';
+    var ext = f.name.split('.').pop().toUpperCase();
+    var item = document.createElement('div');
+    item.className = 'file-item';
 
-  // 署名付きURL（60分有効）を取得
-  var paths = data.map(function(file) { return candidateId + '/' + file.name; });
-  var { data: signedUrls, error: signError } = await sb.storage.from('candidates-files').createSignedUrls(paths, 3600);
-  if (signError) {
-    listEl.innerHTML = '<div style="font-size:12px;color:#c00">ファイルURLの取得に失敗しました</div>';
-    return;
-  }
+    var extSpan = document.createElement('span');
+    extSpan.className = 'file-ext';
+    extSpan.textContent = ext;
+    item.appendChild(extSpan);
 
-  listEl.innerHTML = data.map(function(file, i) {
-    var ext = file.name.split('.').pop().toUpperCase();
-    var signedUrl = signedUrls && signedUrls[i] ? signedUrls[i].signedUrl : '#';
-    return '<div class="file-item">' +
-      '<span class="file-type">' + ext + '</span>' +
-      '<a href="' + signedUrl + '" target="_blank">' + file.name + '</a>' +
-      '<button class="file-delete-btn" onclick="deleteFile('' + candidateId + '','' + file.name + '')">削除</button>' +
-      '</div>';
-  }).join('');
+    var link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.textContent = f.name;
+    item.appendChild(link);
+
+    var delBtn = document.createElement('button');
+    delBtn.className = 'file-del-btn';
+    delBtn.textContent = '削除';
+    delBtn.addEventListener('click', function() { doDeleteFile(candidateId, f.name); });
+    item.appendChild(delBtn);
+
+    listDiv.appendChild(item);
+  });
 }
 
-async function handleFileSelect(event, candidateId) {
-  var files = Array.from(event.target.files);
-  await uploadFiles(files, candidateId);
-  event.target.value = '';
-}
-
-async function handleFileDrop(event, candidateId) {
-  event.preventDefault();
-  document.getElementById('file-upload-area').classList.remove('dragover');
-  var files = Array.from(event.dataTransfer.files);
-  await uploadFiles(files, candidateId);
-}
-
-async function uploadFiles(files, candidateId) {
-  var progress = document.getElementById('upload-progress');
+async function doUpload(files, candidateId) {
+  var msgDiv = document.getElementById('upload-msg');
   for (var i = 0; i < files.length; i++) {
-    var file = files[i];
-    if (progress) progress.textContent = file.name + ' をアップロード中…';
-    var path = candidateId + '/' + file.name;
-    var { error } = await sb.storage.from('candidates-files').upload(path, file, { upsert: true });
-    if (error) {
-      alert(file.name + ' のアップロードに失敗しました: ' + error.message);
+    var f = files[i];
+    if (msgDiv) msgDiv.textContent = f.name + ' をアップロード中…';
+    var res = await sb.storage.from('candidates-files').upload(candidateId + '/' + f.name, f, { upsert: true });
+    if (res.error) {
+      alert(f.name + ' のアップロードに失敗しました: ' + res.error.message);
     }
   }
-  if (progress) progress.textContent = '✅ アップロード完了';
-  setTimeout(function() { if (progress) progress.textContent = ''; }, 2000);
-  await refreshFileList(candidateId);
+  if (msgDiv) msgDiv.textContent = '✅ アップロード完了';
+  setTimeout(function() { if (msgDiv) msgDiv.textContent = ''; }, 2000);
+  loadFileList(candidateId);
 }
 
-async function deleteFile(candidateId, fileName) {
+async function doDeleteFile(candidateId, fileName) {
   if (!confirm(fileName + ' を削除してよいですか？')) return;
-  var { error } = await sb.storage.from('candidates-files').remove([candidateId + '/' + fileName]);
-  if (error) { alert('削除に失敗しました: ' + error.message); return; }
-  await refreshFileList(candidateId);
+  var res = await sb.storage.from('candidates-files').remove([candidateId + '/' + fileName]);
+  if (res.error) { alert('削除に失敗しました: ' + res.error.message); return; }
+  loadFileList(candidateId);
 }
 </script>
 </body>
