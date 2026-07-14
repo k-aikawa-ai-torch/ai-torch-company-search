@@ -8,30 +8,30 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#F2F0E9;color:#1E211D;min-height:100vh}
-#lock-screen{position:fixed;inset:0;background:#1E211D;display:flex;align-items:center;justify-content:center;z-index:9999}
-#lock-box{background:#F2F0E9;border-radius:4px;padding:36px 40px;width:320px;text-align:center}
+body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#FFFFFF;color:#14213D;min-height:100vh}
+#lock-screen{position:fixed;inset:0;background:#14213D;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#FFFFFF;border-radius:4px;padding:36px 40px;width:320px;text-align:center}
 #lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
-#lock-box p{font-size:13px;color:#8A8C7E;margin-bottom:20px}
-#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #d9d6c9;border-radius:4px;font-size:15px;margin-bottom:10px;background:#fff}
-#lock-box input:focus{outline:none;border-color:#B8621B}
-#lock-box button{width:100%;height:40px;background:#1E211D;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
-#lock-error{color:#B8621B;font-size:12px;margin-top:8px;min-height:18px}
+#lock-box p{font-size:13px;color:#6B7A99;margin-bottom:20px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #DEE7F7;border-radius:4px;font-size:15px;margin-bottom:10px;background:#fff}
+#lock-box input:focus{outline:none;border-color:#0D40D9}
+#lock-box button{width:100%;height:40px;background:#14213D;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
+#lock-error{color:#0D40D9;font-size:12px;margin-top:8px;min-height:18px}
 #app{display:none}
-.nav{background:#fff;border-bottom:1px solid #d9d6c9;display:flex;gap:0}
-.nav-btn{padding:10px 20px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#8A8C7E;border-bottom:2px solid transparent}
-.nav-btn.active{color:#1E211D;border-bottom-color:#1E211D;font-weight:500}
+.nav{background:#fff;border-bottom:1px solid #DEE7F7;display:flex;gap:0}
+.nav-btn{padding:10px 20px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#6B7A99;border-bottom:2px solid transparent}
+.nav-btn.active{color:#14213D;border-bottom-color:#14213D;font-weight:500}
 .main{max-width:1000px;margin:0 auto;padding:16px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
-.filters input{height:36px;padding:0 12px;border:1px solid #d9d6c9;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
-.filters select{height:36px;padding:0 10px;border:1px solid #d9d6c9;border-radius:8px;background:#fff;font-size:13px}
+.filters input{height:36px;padding:0 12px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
+.filters select{height:36px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
-.count{font-size:13px;color:#8A8C7E}
-.add-btn{padding:0 16px;height:36px;background:#1E211D;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+.count{font-size:13px;color:#6B7A99}
+.add-btn{padding:0 16px;height:36px;background:#14213D;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
 .table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #d9d6c9;font-size:12px}
-th{background:#f9f9f7;font-size:11px;font-weight:500;color:#8A8C7E;padding:8px 12px;text-align:left;border-bottom:1px solid #d9d6c9;white-space:nowrap}
-td{padding:8px 12px;border-bottom:1px solid #F2F0E9;vertical-align:top}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #DEE7F7;font-size:12px}
+th{background:#f9f9f7;font-size:11px;font-weight:500;color:#6B7A99;padding:8px 12px;text-align:left;border-bottom:1px solid #DEE7F7;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #FFFFFF;vertical-align:top}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafaf8;cursor:pointer}
 .phase-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;white-space:nowrap}
@@ -50,16 +50,16 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 #modal-box,#pipeline-modal-box{background:#fff;border-radius:12px;width:100%;max-width:700px;padding:24px;margin:auto}
 #pipeline-modal-box{max-width:560px}
 .modal-header{font-size:16px;font-weight:500;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
-.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#8A8C7E}
-.modal-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid #d9d6c9}
-.modal-tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#8A8C7E;border-bottom:2px solid transparent}
-.modal-tab.active{color:#1E211D;border-bottom-color:#1E211D;font-weight:500}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6B7A99}
+.modal-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid #DEE7F7}
+.modal-tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#6B7A99;border-bottom:2px solid transparent}
+.modal-tab.active{color:#14213D;border-bottom-color:#14213D;font-weight:500}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
-.detail-item{padding:6px 0;border-bottom:1px solid #F2F0E9}
+.detail-item{padding:6px 0;border-bottom:1px solid #FFFFFF}
 .detail-label{font-size:10px;color:#aaa;margin-bottom:2px}
-.detail-value{font-size:13px;color:#1E211D}
+.detail-value{font-size:13px;color:#14213D}
 .detail-full{grid-column:1/-1}
-.markdown-preview{background:#f9f9f7;border:1px solid #d9d6c9;border-radius:8px;padding:12px;font-size:13px;color:#333;line-height:1.7;min-height:60px}
+.markdown-preview{background:#f9f9f7;border:1px solid #DEE7F7;border-radius:8px;padding:12px;font-size:13px;color:#333;line-height:1.7;min-height:60px}
 .markdown-preview h1,.markdown-preview h2,.markdown-preview h3{margin:8px 0 4px;font-weight:600}
 .markdown-preview h1{font-size:16px}
 .markdown-preview h2{font-size:14px}
@@ -68,47 +68,47 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .markdown-preview li{margin:2px 0}
 .markdown-preview p{margin:4px 0}
 .pipeline-mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-.pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#8A8C7E;padding:5px 8px;text-align:left;border-bottom:1px solid #d9d6c9}
-.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #F2F0E9;vertical-align:middle}
+.pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#6B7A99;padding:5px 8px;text-align:left;border-bottom:1px solid #DEE7F7}
+.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #FFFFFF;vertical-align:middle}
 .pipeline-mini-table tr:last-child td{border-bottom:none}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group.full{grid-column:1/-1}
-.form-group label{font-size:11px;color:#8A8C7E;font-weight:500}
-.form-group input,.form-group select,.form-group textarea{height:36px;padding:0 10px;border:1px solid #d9d6c9;border-radius:8px;font-size:13px;background:#fff;width:100%}
+.form-group label{font-size:11px;color:#6B7A99;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{height:36px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;background:#fff;width:100%}
 .form-group textarea{height:120px;padding:8px 10px;resize:vertical;font-family:inherit}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#B8621B}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#0D40D9}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0;align-items:center}
-.btn-save{padding:0 20px;height:38px;background:#1E211D;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
-.btn-cancel{padding:0 20px;height:38px;background:#fff;color:#1E211D;border:1px solid #d9d6c9;border-radius:8px;font-size:13px;cursor:pointer}
+.btn-save{padding:0 20px;height:38px;background:#14213D;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+.btn-cancel{padding:0 20px;height:38px;background:#fff;color:#14213D;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;cursor:pointer}
 .btn-delete{padding:0 20px;height:38px;background:#feecec;color:#991a1a;border:1px solid #f5c0c0;border-radius:8px;font-size:13px;cursor:pointer}
-.btn-edit{padding:0 16px;height:32px;background:#F2F0E9;color:#1E211D;border:1px solid #d9d6c9;border-radius:8px;font-size:12px;cursor:pointer}
+.btn-edit{padding:0 16px;height:32px;background:#FFFFFF;color:#14213D;border:1px solid #DEE7F7;border-radius:8px;font-size:12px;cursor:pointer}
 .save-msg{font-size:12px;color:#2d6a4f;margin-right:auto}
-.section-title{font-size:12px;font-weight:500;color:#8A8C7E;margin:16px 0 8px;padding-top:12px;border-top:1px solid #f0f0f0}
-.loading{text-align:center;padding:40px;color:#8A8C7E;font-size:14px}
+.section-title{font-size:12px;font-weight:500;color:#6B7A99;margin:16px 0 8px;padding-top:12px;border-top:1px solid #f0f0f0}
+.loading{text-align:center;padding:40px;color:#6B7A99;font-size:14px}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
-.mini-btn{padding:2px 8px;font-size:11px;border:1px solid #d9d6c9;border-radius:4px;background:#fff;cursor:pointer}
-.add-job-btn{padding:4px 12px;font-size:12px;border:1px solid #1E211D;border-radius:6px;background:#1E211D;color:#fff;cursor:pointer}
-.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #d9d6c9;border-radius:6px;margin-bottom:4px}
-.file-item a{font-size:12px;color:#1E211D;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini-btn{padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer}
+.add-job-btn{padding:4px 12px;font-size:12px;border:1px solid #14213D;border-radius:6px;background:#14213D;color:#fff;cursor:pointer}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #DEE7F7;border-radius:6px;margin-bottom:4px}
+.file-item a{font-size:12px;color:#14213D;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-item a:hover{text-decoration:underline}
-.file-item .file-ext{font-size:10px;color:#8A8C7E;white-space:nowrap}
+.file-item .file-ext{font-size:10px;color:#6B7A99;white-space:nowrap}
 .file-del-btn{padding:1px 6px;font-size:11px;border:1px solid #f5c0c0;border-radius:4px;background:#feecec;color:#991a1a;cursor:pointer}
-.upload-area{border:2px dashed #d9d6c9;border-radius:8px;padding:16px;text-align:center;margin-top:8px;transition:border-color 0.15s;cursor:pointer}
-.upload-area:hover,.upload-area.over{border-color:#1E211D;background:#f9f9f7}
-.upload-area p{font-size:12px;color:#8A8C7E;margin-bottom:6px}
+.upload-area{border:2px dashed #DEE7F7;border-radius:8px;padding:16px;text-align:center;margin-top:8px;transition:border-color 0.15s;cursor:pointer}
+.upload-area:hover,.upload-area.over{border-color:#14213D;background:#f9f9f7}
+.upload-area p{font-size:12px;color:#6B7A99;margin-bottom:6px}
 .upload-msg{font-size:12px;color:#2d6a4f;margin-top:4px;min-height:16px}
 .file-list{margin-top:8px}
-.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #d9d6c9;border-radius:6px;margin-bottom:4px}
-.file-item a{font-size:12px;color:#1E211D;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #DEE7F7;border-radius:6px;margin-bottom:4px}
+.file-item a{font-size:12px;color:#14213D;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-item a:hover{text-decoration:underline}
-.file-item .file-type{font-size:10px;color:#8A8C7E;white-space:nowrap}
+.file-item .file-type{font-size:10px;color:#6B7A99;white-space:nowrap}
 .file-delete-btn{padding:1px 6px;font-size:11px;border:1px solid #f5c0c0;border-radius:4px;background:#feecec;color:#991a1a;cursor:pointer;white-space:nowrap}
-.file-upload-area{border:2px dashed #d9d6c9;border-radius:8px;padding:16px;text-align:center;cursor:pointer;margin-top:8px;transition:border-color 0.15s}
-.file-upload-area:hover{border-color:#B8621B}
-.file-upload-area.dragover{border-color:#1E211D;background:#f9f9f7}
-.file-upload-area p{font-size:12px;color:#8A8C7E;margin-bottom:6px}
-.file-upload-btn{padding:4px 12px;font-size:12px;border:1px solid #d9d6c9;border-radius:6px;background:#fff;cursor:pointer}
+.file-upload-area{border:2px dashed #DEE7F7;border-radius:8px;padding:16px;text-align:center;cursor:pointer;margin-top:8px;transition:border-color 0.15s}
+.file-upload-area:hover{border-color:#0D40D9}
+.file-upload-area.dragover{border-color:#14213D;background:#f9f9f7}
+.file-upload-area p{font-size:12px;color:#6B7A99;margin-bottom:6px}
+.file-upload-btn{padding:4px 12px;font-size:12px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer}
 .upload-progress{font-size:12px;color:#2d6a4f;margin-top:4px}
 </style>
 <link rel="stylesheet" href="assets/shared.css">
@@ -168,7 +168,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
         <span class="count" id="count"></span>
         <label style="margin-left:12px">第1ソート:</label>
-        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #d9d6c9;border-radius:6px;background:#fff">
+        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
           <option value="phase">フェーズ</option><option value="name">候補者名</option>
           <option value="next_action">NextAction日</option><option value="source">流入経路</option>
           <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
@@ -176,7 +176,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <option value="status">ステータス</option>
         </select>
         <label>第2ソート:</label>
-        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #d9d6c9;border-radius:6px;background:#fff">
+        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
           <option value="next_action">NextAction日</option><option value="phase">フェーズ</option>
           <option value="name">候補者名</option><option value="source">流入経路</option>
           <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
@@ -414,7 +414,7 @@ function renderDetail(c, pipelines) {
   if (pipelines.length > 0) {
     pipelines.forEach(function(p) {
       const jobName = (p.job_name || '').replace(/\n/g, ' ');
-      const jobLink = p.job_url ? '<a href="' + p.job_url + '" target="_blank" style="color:#1E211D">' + jobName + '</a>' : jobName;
+      const jobLink = p.job_url ? '<a href="' + p.job_url + '" target="_blank" style="color:#14213D">' + jobName + '</a>' : jobName;
       pipelineRows += '<tr>' +
         '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
         '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
@@ -493,10 +493,10 @@ function renderEditForm(c) {
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
     '<label>メモ（マークダウン対応）</label>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
-    (templateOptions ? '<select id="template-select" onchange="applyTemplate()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid #d9d6c9;border-radius:4px;background:#fff"><option value="">テンプレートを選択…</option>' + templateOptions + '</select>' : '') +
-    '<button onclick="saveMemoTemplate()" style="padding:2px 8px;font-size:11px;border:1px solid #d9d6c9;border-radius:4px;background:#fff;cursor:pointer">💾 保存</button>' +
-    '<button id="btn-edit-mode" onclick="toggleMemoMode(\'edit\')" style="padding:2px 8px;font-size:11px;border:1px solid #1E211D;border-radius:4px;background:#1E211D;color:#fff;cursor:pointer">編集</button>' +
-    '<button id="btn-preview-mode" onclick="toggleMemoMode(\'preview\')" style="padding:2px 8px;font-size:11px;border:1px solid #d9d6c9;border-radius:4px;background:#fff;cursor:pointer">プレビュー</button>' +
+    (templateOptions ? '<select id="template-select" onchange="applyTemplate()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid #DEE7F7;border-radius:4px;background:#fff"><option value="">テンプレートを選択…</option>' + templateOptions + '</select>' : '') +
+    '<button onclick="saveMemoTemplate()" style="padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer">💾 保存</button>' +
+    '<button id="btn-edit-mode" onclick="toggleMemoMode(\'edit\')" style="padding:2px 8px;font-size:11px;border:1px solid #14213D;border-radius:4px;background:#14213D;color:#fff;cursor:pointer">編集</button>' +
+    '<button id="btn-preview-mode" onclick="toggleMemoMode(\'preview\')" style="padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer">プレビュー</button>' +
     '</div></div>' +
     '<div style="margin-bottom:4px;font-size:11px;color:#aaa">**太字** _斜体_ ## 見出し - 箇条書き</div>' +
     '<textarea id="f-memo" style="height:200px;font-family:monospace" onkeydown="handleMemoKeydown(event)">' + (c ? c.memo||'' : '') + '</textarea>' +
@@ -567,13 +567,13 @@ function toggleMemoMode(mode) {
     preview.innerHTML = marked.parse(ta.value || '');
     ta.style.display = 'none';
     preview.style.display = 'block';
-    btnEdit.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #d9d6c9;border-radius:4px;background:#fff;color:#1E211D;cursor:pointer';
-    btnPreview.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #1E211D;border-radius:4px;background:#1E211D;color:#fff;cursor:pointer';
+    btnEdit.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;color:#14213D;cursor:pointer';
+    btnPreview.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #14213D;border-radius:4px;background:#14213D;color:#fff;cursor:pointer';
   } else {
     ta.style.display = 'block';
     preview.style.display = 'none';
-    btnEdit.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #1E211D;border-radius:4px;background:#1E211D;color:#fff;cursor:pointer';
-    btnPreview.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #d9d6c9;border-radius:4px;background:#fff;color:#1E211D;cursor:pointer';
+    btnEdit.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #14213D;border-radius:4px;background:#14213D;color:#fff;cursor:pointer';
+    btnPreview.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;color:#14213D;cursor:pointer';
   }
 }
 
@@ -787,13 +787,13 @@ function initFileSection(candidateId) {
 
   var p2 = document.createElement('p');
   p2.style.fontSize = '11px';
-  p2.style.color = '#B8621B';
+  p2.style.color = '#0D40D9';
   p2.textContent = 'PDF・Word・画像など';
   uploadDiv.appendChild(p2);
 
   var selBtn = document.createElement('button');
   selBtn.className = 'file-upload-btn';
-  selBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #d9d6c9;border-radius:6px;background:#fff;cursor:pointer';
+  selBtn.style.cssText = 'padding:4px 12px;font-size:12px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer';
   selBtn.textContent = 'ファイルを選択';
   uploadDiv.appendChild(selBtn);
 

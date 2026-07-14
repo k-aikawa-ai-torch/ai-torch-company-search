@@ -9,48 +9,48 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Zen Kaku Gothic New',-apple-system,sans-serif;background:#F2F0E9;color:#1E211D;min-height:100vh}
+body{font-family:'Zen Kaku Gothic New',-apple-system,sans-serif;background:#FFFFFF;color:#14213D;min-height:100vh}
 
-#lock-screen{position:fixed;inset:0;background:#1E211D;display:flex;align-items:center;justify-content:center;z-index:9999}
-#lock-box{background:#F2F0E9;border-radius:4px;padding:40px 44px;width:320px;text-align:center}
+#lock-screen{position:fixed;inset:0;background:#14213D;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#FFFFFF;border-radius:4px;padding:40px 44px;width:320px;text-align:center}
 #lock-box h2{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin-bottom:6px}
-#lock-box p{font-size:12.5px;color:#8A8C7E;margin-bottom:22px}
-#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #d9d6c9;border-radius:4px;font-size:14px;margin-bottom:10px;background:#fff}
-#lock-box input:focus{outline:none;border-color:#B8621B}
-#lock-box button{width:100%;height:40px;background:#1E211D;color:#F2F0E9;border:none;border-radius:4px;font-size:14px;cursor:pointer;font-family:'Zen Kaku Gothic New',sans-serif}
-#lock-error{color:#B8621B;font-size:12px;margin-top:8px;min-height:18px}
+#lock-box p{font-size:12.5px;color:#6B7A99;margin-bottom:22px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #DEE7F7;border-radius:4px;font-size:14px;margin-bottom:10px;background:#fff}
+#lock-box input:focus{outline:none;border-color:#0D40D9}
+#lock-box button{width:100%;height:40px;background:#14213D;color:#FFFFFF;border:none;border-radius:4px;font-size:14px;cursor:pointer;font-family:'Zen Kaku Gothic New',sans-serif}
+#lock-error{color:#0D40D9;font-size:12px;margin-top:8px;min-height:18px}
 
 #app{display:none}
 .app-body{padding-left:64px}
 
 .main{padding:40px 44px;max-width:920px}
 .topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
-.brand{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:0.1em;color:#8A8C7E}
-.user{display:flex;align-items:center;gap:10px;font-size:12px;color:#1E211D;cursor:pointer}
-.user-avatar{width:28px;height:28px;border-radius:50%;overflow:hidden;border:1px solid #1E211D;flex-shrink:0}
+.brand{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:0.1em;color:#6B7A99}
+.user{display:flex;align-items:center;gap:10px;font-size:12px;color:#14213D;cursor:pointer}
+.user-avatar{width:28px;height:28px;border-radius:50%;overflow:hidden;border:1px solid #14213D;flex-shrink:0}
 .user-avatar img{width:100%;height:100%;object-fit:cover;display:block}
 
 h1{font-family:'Shippori Mincho',serif;font-size:27px;font-weight:700;margin-bottom:6px}
-h1 span{color:#B8621B}
-.sub{font-size:13px;color:#8A8C7E;margin-bottom:28px}
+h1 span{color:#0D40D9}
+.sub{font-size:13px;color:#6B7A99;margin-bottom:28px}
 
 .status-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
-.status-cell{background:#fff;border:1px solid #d9d6c9;border-radius:8px;padding:16px 18px}
+.status-cell{background:#fff;border:1px solid #DEE7F7;border-radius:8px;padding:16px 18px}
 .status-cell.link{text-decoration:none;color:inherit;display:block;transition:border-color 0.15s}
-.status-cell.link:hover{border-color:#B8621B}
-.status-label{font-size:11px;color:#8A8C7E;margin-bottom:8px;letter-spacing:0.03em}
-.status-value{font-family:'Shippori Mincho',serif;font-size:21px;font-weight:700;color:#1E211D}
-.status-value.accent{color:#B8621B}
+.status-cell.link:hover{border-color:#0D40D9}
+.status-label{font-size:11px;color:#6B7A99;margin-bottom:8px;letter-spacing:0.03em}
+.status-value{font-family:'Shippori Mincho',serif;font-size:21px;font-weight:700;color:#14213D}
+.status-value.accent{color:#0D40D9}
 
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-.tile{background:#fff;border:1px solid #d9d6c9;border-radius:8px;padding:22px;text-decoration:none;color:inherit;transition:border-color 0.15s}
-.tile:hover{border-color:#B8621B}
+.tile{background:#fff;border:1px solid #DEE7F7;border-radius:8px;padding:22px;text-decoration:none;color:inherit;transition:border-color 0.15s}
+.tile:hover{border-color:#0D40D9}
 .tile-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.tile-icon{width:32px;height:32px;border-radius:50%;overflow:hidden;border:1px solid #d9d6c9;flex-shrink:0}
+.tile-icon{width:32px;height:32px;border-radius:50%;overflow:hidden;border:1px solid #DEE7F7;flex-shrink:0}
 .tile-icon img{width:100%;height:100%;object-fit:cover;display:block}
-.tile-tag{font-family:'Shippori Mincho',serif;font-size:11px;color:#8A8C7E;letter-spacing:0.05em}
+.tile-tag{font-family:'Shippori Mincho',serif;font-size:11px;color:#6B7A99;letter-spacing:0.05em}
 .tile-title{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin-bottom:6px}
-.tile-desc{font-size:12.5px;color:#8A8C7E;line-height:1.6}
+.tile-desc{font-size:12.5px;color:#6B7A99;line-height:1.6}
 
 @media (max-width:700px){
   .app-body{padding-left:0;padding-top:56px}
@@ -92,7 +92,7 @@ h1 span{color:#B8621B}
         <div class="user" onclick="logout()"><span class="user-avatar"><img src="assets/ohagi-1.png" alt="おはぎ"></span><span id="user-label">読み込み中…</span></div>
       </div>
 
-      <h1 id="greeting">おかえりなさい</h1>
+      <h1 id="greeting">収束を確認中……</h1>
       <div class="sub" id="datestr"></div>
 
       <div class="status-strip">
@@ -169,7 +169,23 @@ function showApp(email) {
 
   const name = (email.split('@')[0] || '').toLowerCase();
   const label = name.includes('aikawa') ? '相川' : name.includes('nagai') ? '永井' : name.includes('aizawa') ? '會澤' : email;
-  document.getElementById('greeting').innerHTML = `おかえりなさい、<span>${label}</span>さん`;
+  const GREETINGS = [
+    label => `ククク……この世界線に、<span>${label}</span>の帰還を確認した。`,
+    label => `リーディング・シュタイナーが疼く。おかえりだ、<span>${label}</span>。`,
+    label => `世界線変動率、収束を確認——ようこそ、<span>${label}</span>。`,
+    label => `これが選択すべき世界線か……よく戻った、<span>${label}</span>。`,
+    label => `エル・プサイ・コングルゥ。<span>${label}</span>、此度の任務、頼んだぞ。`,
+    label => `アトラクタフィールドの収束を確認。<span>${label}</span>、ラボへようこそ。`,
+    label => `カー・ブラックホールの向こう側から、<span>${label}</span>が帰還した。`,
+    label => `運命石の扉が、また一つ開いた。おかえり、<span>${label}</span>。`,
+    label => `ダイバージェンスに変化なし。<span>${label}</span>、いつも通りの世界線だ。`,
+    label => `タイムリープ完了——記憶は正常に上書きされている、<span>${label}</span>。`,
+    label => `機関の目を掻い潜り、<span>${label}</span>がこの世界線に舞い戻った。`,
+    label => `世界線の収束範囲内、異常なし。おかえりなさい……は柄じゃないな、<span>${label}</span>。`,
+    label => `選択の余地はなかった。この世界線こそが、<span>${label}</span>の帰る場所だ。`,
+  ];
+  const pick = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  document.getElementById('greeting').innerHTML = pick(label);
 
   const now = new Date();
   const days = ['日','月','火','水','木','金','土'];
