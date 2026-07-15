@@ -155,7 +155,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
   </div>
   <div class="main">
     <div class="filters">
-      <input type="text" id="q" placeholder="候補者名・経路・職種で検索…" oninput="render()">
+      <input type="text" id="q" placeholder="候補者名・経路・職種・現所属・電話番号・メールで検索…" oninput="render()">
       <select id="phase-filter" onchange="render()">
         <option value="">全フェーズ</option>
         <option>返信来た！</option><option>初回面談DONE</option><option>求人提案なう</option>
@@ -163,6 +163,17 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <option>内定承諾歓喜</option><option>入社後フォローしようね</option>
       </select>
       <select id="source-filter" onchange="render()"><option value="">全経路</option></select>
+      <select id="yomi-filter" onchange="render()">
+        <option value="">全決定コミ</option>
+        <option value="100%">100%</option><option value="80%">80%</option><option value="60%">60%</option>
+        <option value="40%">40%</option><option value="20%">20%</option>
+      </select>
+      <select id="axis-filter" onchange="render()">
+        <option value="">全転職軸</option>
+        <option>年収アップ</option><option>裁量権</option><option>事業成長性</option>
+        <option>ワークライフバランス</option><option>技術力・スキルアップ</option><option>安定性</option>
+        <option>社風・人間関係</option><option>事業内容への共感</option><option>マネジメント経験</option>
+      </select>
     </div>
     <div class="top-bar">
       <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
@@ -174,7 +185,12 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
           <option value="revenue_forecast">売上見込み</option><option value="registered_at">登録日</option>
           <option value="status">ステータス</option>
+          <option value="current_company">現所属/概歴</option><option value="expected_join_date">入社想定日</option>
+          <option value="phone">電話番号</option><option value="sns_url">SNS URL</option>
+          <option value="email">メールアドレス</option><option value="decision_yomi">決定コミ</option>
+          <option value="current_salary">現年収</option><option value="top_priority_axis">転職軸</option>
         </select>
+        <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
         <label>第2ソート:</label>
         <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
           <option value="next_action">NextAction日</option><option value="phase">フェーズ</option>
@@ -182,17 +198,24 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
           <option value="revenue_forecast">売上見込み</option><option value="registered_at">登録日</option>
           <option value="status">ステータス</option>
+          <option value="current_company">現所属/概歴</option><option value="expected_join_date">入社想定日</option>
+          <option value="phone">電話番号</option><option value="sns_url">SNS URL</option>
+          <option value="email">メールアドレス</option><option value="decision_yomi">決定コミ</option>
+          <option value="current_salary">現年収</option><option value="top_priority_axis">転職軸</option>
         </select>
+        <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
       </div>
       <button class="add-btn" onclick="openAdd()">＋ 候補者追加</button>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>候補者名</th><th>フェーズ</th><th>NextAction日</th>
-          <th>経路</th><th>職種</th><th>希望年収</th><th>売上見込</th><th>登録日</th>
+          <th>候補者名</th><th>フェーズ</th><th>決定コミ</th><th>現年収</th><th>転職軸(優先1位)</th>
+          <th>職種</th><th>現所属/概歴</th><th>希望年収</th><th>売上見込</th><th>入社想定日</th>
+          <th>経路</th><th>登録日</th><th>NextAction日</th>
+          <th>電話番号</th><th>SNS URL</th><th>メールアドレス</th><th>添付</th>
         </tr></thead>
-        <tbody id="tbody"><tr><td colspan="8" class="loading">データを読み込み中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="17" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -233,6 +256,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let DATA = [];
 let MEMBERS = [];
+let FILE_FLAGS = new Set();
 let TEMPLATES = [];
 let currentMember = '全員';
 let currentTab = 'active';
@@ -247,6 +271,7 @@ const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','
 const STATUS_LIST = ['進行中','将来的に声かけ予定_再アプローチ','終了_他社に移行','終了_自社と合わない','終了_転職延期','終了_承諾済み（フォローしようね）'];
 const SOURCE_LIST = ['スカウト（ビズリーチ）','レバテックダイレクト','スカウト（LinkedIn）','スカウト（AMBI）','スカウト（YOUTRUST）','リファラル（求職者紹介）','リファラル（社員経由）','自社HP','アライアンス'];
 const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%'];
+const AXIS_LIST = ['年収アップ','裁量権','事業成長性','ワークライフバランス','技術力・スキルアップ','安定性','社風・人間関係','事業内容への共感','マネジメント経験'];
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_辞退','終了_不合格','終了_その他'];
 
@@ -271,7 +296,7 @@ async function loadData() {
     sb.from('candidates').select('*, members(display_name,name)').order('registered_at', { ascending: false }),
     sb.from('templates').select('*').order('name')
   ]);
-  if (error) { document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">読み込み失敗</td></tr>'; return; }
+  if (error) { document.getElementById('tbody').innerHTML = '<tr><td colspan="17" class="loading">読み込み失敗</td></tr>'; return; }
   MEMBERS = members || [];
   DATA = candidates || [];
   TEMPLATES = templates || [];
@@ -279,7 +304,8 @@ async function loadData() {
   const sources = [...new Set(DATA.map(c => c.source).filter(Boolean))].sort();
   const sel = document.getElementById('source-filter');
   sel.innerHTML = '<option value="">全経路</option>';
-  sources.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+  sources.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=cleanSource(s); sel.appendChild(o); });
+  loadFileFlags();
   render();
 }
 
@@ -308,6 +334,22 @@ function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
 function today() { return new Date().toISOString().substring(0,10); }
 
+let sort1Dir = 1;
+let sort2Dir = 1;
+function cleanSource(s) {
+  return (s || '').replace(/^[（(]+/, '').trim();
+}
+function toggleSortDir(which) {
+  if (which === 1) {
+    sort1Dir *= -1;
+    document.getElementById('sort1-dir-btn').textContent = sort1Dir === 1 ? '▲' : '▼';
+  } else {
+    sort2Dir *= -1;
+    document.getElementById('sort2-dir-btn').textContent = sort2Dir === 1 ? '▲' : '▼';
+  }
+  render();
+}
+
 function compareCandBy(key, a, b) {
   if (key === 'phase') return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
   if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
@@ -317,10 +359,18 @@ function compareCandBy(key, a, b) {
   }
   if (key === 'source') return (a.source||'').localeCompare(b.source||'','ja');
   if (key === 'job_type') return (a.job_type||'').localeCompare(b.job_type||'','ja');
-  if (key === 'desired_salary') return (b.desired_salary||0)-(a.desired_salary||0);
-  if (key === 'revenue_forecast') return (b.revenue_forecast||0)-(a.revenue_forecast||0);
-  if (key === 'registered_at') return (b.registered_at||'').localeCompare(a.registered_at||'');
+  if (key === 'desired_salary') return (a.desired_salary||0)-(b.desired_salary||0);
+  if (key === 'revenue_forecast') return (a.revenue_forecast||0)-(b.revenue_forecast||0);
+  if (key === 'registered_at') return (a.registered_at||'').localeCompare(b.registered_at||'');
   if (key === 'status') return (a.status||'').localeCompare(b.status||'','ja');
+  if (key === 'current_company') return (a.current_company||'').localeCompare(b.current_company||'','ja');
+  if (key === 'expected_join_date') return (a.expected_join_date||'').localeCompare(b.expected_join_date||'');
+  if (key === 'phone') return (a.phone||'').localeCompare(b.phone||'');
+  if (key === 'sns_url') return (a.sns_url||'').localeCompare(b.sns_url||'');
+  if (key === 'email') return (a.email||'').localeCompare(b.email||'');
+  if (key === 'decision_yomi') return DECISION_YOMI_LIST.indexOf(a.decision_yomi||'') - DECISION_YOMI_LIST.indexOf(b.decision_yomi||'');
+  if (key === 'current_salary') return (a.current_salary||0)-(b.current_salary||0);
+  if (key === 'top_priority_axis') return AXIS_LIST.indexOf(a.top_priority_axis||'') - AXIS_LIST.indexOf(b.top_priority_axis||'');
   return 0;
 }
 
@@ -328,6 +378,8 @@ function render() {
   const q = (document.getElementById('q').value||'').toLowerCase();
   const phaseFilter = document.getElementById('phase-filter').value;
   const sourceFilter = document.getElementById('source-filter').value;
+  const yomiFilter = document.getElementById('yomi-filter').value;
+  const axisFilter = document.getElementById('axis-filter').value;
   const todayStr = today();
   const sort1 = document.getElementById('sort1').value;
   const sort2 = document.getElementById('sort2').value;
@@ -336,14 +388,17 @@ function render() {
     if (currentTab === 'future' && !c.status?.includes('将来的')) return false;
     if (currentTab === 'done' && !c.status?.includes('終了')) return false;
     if (currentMember !== '全員' && c.members?.name !== MEMBER_MAP[currentMember]) return false;
-    if (q && !(c.name||'').toLowerCase().includes(q) && !(c.source||'').toLowerCase().includes(q) && !(c.job_type||'').toLowerCase().includes(q)) return false;
+    if (q && !(c.name||'').toLowerCase().includes(q) && !(c.source||'').toLowerCase().includes(q) && !(c.job_type||'').toLowerCase().includes(q)
+        && !(c.current_company||'').toLowerCase().includes(q) && !(c.phone||'').toLowerCase().includes(q) && !(c.email||'').toLowerCase().includes(q)) return false;
     if (phaseFilter && c.phase !== phaseFilter) return false;
     if (sourceFilter && c.source !== sourceFilter) return false;
+    if (yomiFilter && c.decision_yomi !== yomiFilter) return false;
+    if (axisFilter && c.top_priority_axis !== axisFilter) return false;
     return true;
   });
-  res.sort((a,b) => { const r1=compareCandBy(sort1,a,b); return r1!==0?r1:compareCandBy(sort2,a,b); });
+  res.sort((a,b) => { const r1=sort1Dir*compareCandBy(sort1,a,b); return r1!==0?r1:sort2Dir*compareCandBy(sort2,a,b); });
   document.getElementById('count').textContent = res.length + '名';
-  if (!res.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">該当する候補者がいません</td></tr>'; return; }
+  if (!res.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="17" class="empty">該当する候補者がいません</td></tr>'; return; }
   document.getElementById('tbody').innerHTML = res.map(c => {
     const isToday = c.next_action_day === todayStr;
     const isOverdue = c.next_action_day && c.next_action_day < todayStr;
@@ -353,12 +408,21 @@ function render() {
     return '<tr onclick="openDetail(\'' + c.id + '\')">' +
       '<td><strong>' + (c.name||'-') + '</strong>' + (c.members ? '<br><span style="font-size:10px;color:#aaa">' + c.members.display_name + '</span>' : '') + '</td>' +
       '<td><span class="phase-badge ' + getPhaseClass(c.phase) + '">' + (c.phase||'-') + '</span></td>' +
-      '<td>' + dateLabel + '</td>' +
-      '<td style="color:#666">' + (c.source||'-') + '</td>' +
+      '<td style="color:#666">' + (c.decision_yomi||'-') + '</td>' +
+      '<td class="salary-cell">' + fmtSalary(c.current_salary) + '</td>' +
+      '<td style="color:#666">' + (c.top_priority_axis||'-') + '</td>' +
       '<td style="color:#666">' + (c.job_type||'-') + '</td>' +
+      '<td style="color:#666">' + (c.current_company||'-') + '</td>' +
       '<td class="salary-cell">' + fmtSalary(c.desired_salary) + '</td>' +
       '<td class="salary-cell">' + fmtSalary(c.revenue_forecast) + '</td>' +
+      '<td style="color:#666">' + fmtDate(c.expected_join_date) + '</td>' +
+      '<td style="color:#666">' + (cleanSource(c.source) || '-') + '</td>' +
       '<td style="color:#aaa">' + fmtDate(c.registered_at) + '</td>' +
+      '<td>' + dateLabel + '</td>' +
+      '<td style="color:#666">' + (c.phone||'-') + '</td>' +
+      '<td style="color:#666">' + (c.sns_url ? '<a href="' + c.sns_url + '" target="_blank" onclick="event.stopPropagation()">リンク</a>' : '-') + '</td>' +
+      '<td style="color:#666">' + (c.email ? '<a href="mailto:' + c.email + '" onclick="event.stopPropagation()">' + c.email + '</a>' : '-') + '</td>' +
+      '<td style="text-align:center">' + (FILE_FLAGS.has(c.id) ? '📎' : '-') + '</td>' +
       '</tr>';
   }).join('');
 }
@@ -435,10 +499,12 @@ function renderDetail(c, pipelines) {
     '<div class="detail-item"><div class="detail-label">フェーズ</div><div class="detail-value"><span class="phase-badge ' + getPhaseClass(c.phase) + '">' + (c.phase||'-') + '</span></div></div>' +
     '<div class="detail-item"><div class="detail-label">ステータス</div><div class="detail-value">' + (c.status||'-') + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">担当者</div><div class="detail-value">' + (c.members ? c.members.display_name : '-') + '</div></div>' +
-    '<div class="detail-item"><div class="detail-label">流入経路</div><div class="detail-value">' + (c.source||'-') + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">流入経路</div><div class="detail-value">' + (cleanSource(c.source) || '-') + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">職種</div><div class="detail-value">' + (c.job_type||'-') + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">現所属/概歴</div><div class="detail-value">' + (c.current_company||'-') + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">希望年収</div><div class="detail-value">' + fmtSalary(c.desired_salary) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">現年収</div><div class="detail-value">' + fmtSalary(c.current_salary) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">転職軸(優先1位)</div><div class="detail-value">' + (c.top_priority_axis||'-') + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">売上見込み</div><div class="detail-value">' + fmtSalary(c.revenue_forecast) + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">売上ヨミ金額</div><div class="detail-value">' + fmtSalary(c.revenue_yomi) + '</div></div>' +
     '<div class="detail-item"><div class="detail-label">決定ヨミ</div><div class="detail-value">' + (c.decision_yomi||'-') + '</div></div>' +
@@ -464,8 +530,9 @@ function renderEditForm(c) {
   const phaseOptions = PHASE_LIST.map(function(p) { return '<option' + (c && c.phase === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
   const statusOptions = STATUS_LIST.map(function(s) { return '<option' + (c && c.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
   const sourceOptions = SOURCE_LIST.map(function(s) { return '<option' + (c && c.source === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
-    (c && c.source && !SOURCE_LIST.includes(c.source) ? '<option selected>' + c.source + '</option>' : '');
+    (c && c.source && !SOURCE_LIST.includes(c.source) ? '<option value="' + c.source + '" selected>' + cleanSource(c.source) + '</option>' : '');
   const yomiOptions = DECISION_YOMI_LIST.map(function(y) { return '<option' + (c && c.decision_yomi === y ? ' selected' : '') + '>' + y + '</option>'; }).join('');
+  const axisOptions = AXIS_LIST.map(function(ax) { return '<option' + (c && c.top_priority_axis === ax ? ' selected' : '') + '>' + ax + '</option>'; }).join('');
   const templateOptions = TEMPLATES.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
 
   memoMode = 'edit';
@@ -479,9 +546,11 @@ function renderEditForm(c) {
     '<div class="form-group"><label>職種</label><input id="f-job-type" value="' + (c ? c.job_type||'' : '') + '" placeholder="例：開発エンジニア"></div>' +
     '<div class="form-group"><label>現所属/概歴</label><input id="f-current-company" value="' + (c ? (c.current_company||'').replace(/"/g,'&quot;') : '') + '"></div>' +
     '<div class="form-group"><label>希望年収（円）</label><input id="f-desired-salary" type="number" value="' + (c ? c.desired_salary||'' : '') + '"></div>' +
+    '<div class="form-group"><label>現年収（円）</label><input id="f-current-salary" type="number" value="' + (c ? c.current_salary||'' : '') + '"></div>' +
     '<div class="form-group"><label>売上見込み（円）</label><input id="f-revenue-forecast" type="number" value="' + (c ? c.revenue_forecast||'' : '') + '"></div>' +
     '<div class="form-group"><label>売上ヨミ金額（円）</label><input id="f-revenue-yomi" type="number" value="' + (c ? c.revenue_yomi||'' : '') + '"></div>' +
     '<div class="form-group"><label>決定ヨミ</label><select id="f-decision-yomi"><option value="">未設定</option>' + yomiOptions + '</select></div>' +
+    '<div class="form-group"><label>転職軸(優先1位)</label><select id="f-top-priority-axis"><option value="">未設定</option>' + axisOptions + '</select></div>' +
     '<div class="form-group"><label>メール</label><input id="f-email" type="email" value="' + (c ? c.email||'' : '') + '"></div>' +
     '<div class="form-group"><label>電話番号</label><input id="f-phone" value="' + (c ? c.phone||'' : '') + '"></div>' +
     '<div class="form-group"><label>SNS URL</label><input id="f-sns-url" value="' + (c ? c.sns_url||'' : '') + '"></div>' +
@@ -618,9 +687,11 @@ async function saveCandidate() {
     job_type: document.getElementById('f-job-type').value || null,
     current_company: document.getElementById('f-current-company').value || null,
     desired_salary: document.getElementById('f-desired-salary').value ? parseInt(document.getElementById('f-desired-salary').value) : null,
+    current_salary: document.getElementById('f-current-salary').value ? parseInt(document.getElementById('f-current-salary').value) : null,
     revenue_forecast: document.getElementById('f-revenue-forecast').value ? parseInt(document.getElementById('f-revenue-forecast').value) : null,
     revenue_yomi: document.getElementById('f-revenue-yomi').value ? parseInt(document.getElementById('f-revenue-yomi').value) : null,
     decision_yomi: document.getElementById('f-decision-yomi').value || null,
+    top_priority_axis: document.getElementById('f-top-priority-axis').value || null,
     email: document.getElementById('f-email').value || null,
     phone: document.getElementById('f-phone').value || null,
     sns_url: document.getElementById('f-sns-url').value || null,
@@ -836,6 +907,17 @@ function initFileSection(candidateId) {
   });
 
   loadFileList(candidateId);
+}
+
+async function loadFileFlags() {
+  try {
+    const res = await sb.storage.from('candidates-files').list('', { limit: 1000 });
+    const folders = (res.data || []).filter(f => f.id === null);
+    FILE_FLAGS = new Set(folders.map(f => f.name));
+    render();
+  } catch (e) {
+    // ファイル添付有無の表示だけなので、失敗しても致命的ではない
+  }
 }
 
 async function loadFileList(candidateId) {
