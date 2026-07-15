@@ -670,6 +670,7 @@ function renderEditForm(c) {
     '<label>メモ（マークダウン対応）</label>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
     (templateOptions ? '<select id="template-select" onchange="applyTemplate()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid #DEE7F7;border-radius:4px;background:#fff"><option value="">テンプレートを選択…</option>' + templateOptions + '</select>' : '') +
+    (templateOptions ? '<button onclick="deleteMemoTemplate()" title="選択中のテンプレートを削除" style="padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer;color:#b3261e">🗑️</button>' : '') +
     '<button onclick="saveMemoTemplate()" style="padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer">💾 保存</button>' +
     '<button id="btn-edit-mode" onclick="toggleMemoMode(\'edit\')" style="padding:2px 8px;font-size:11px;border:1px solid #14213D;border-radius:4px;background:#14213D;color:#fff;cursor:pointer">編集</button>' +
     '<button id="btn-preview-mode" onclick="toggleMemoMode(\'preview\')" style="padding:2px 8px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer">プレビュー</button>' +
@@ -768,16 +769,47 @@ function applyTemplate() {
 async function saveMemoTemplate() {
   var content = document.getElementById('f-memo').value;
   if (!content.trim()) { alert('メモに内容を入力してからテンプレートとして保存してください'); return; }
-  var name = prompt('テンプレート名を入力してください:');
+  var name = prompt('テンプレート名を入力してください（既存と同じ名前を入力すると上書きされます）:');
   if (!name) return;
-  var { error } = await sb.from('templates').insert({ name: name, content: content });
-  if (error) { alert('保存に失敗しました: ' + error.message); return; }
-  alert('テンプレート「' + name + '」を保存しました');
+  var existing = TEMPLATES.find(function(t) { return t.name === name; });
+  if (existing) {
+    if (!confirm('テンプレート「' + name + '」は既に存在します。上書きしますか？')) return;
+    var { error } = await sb.from('templates').update({ content: content }).eq('id', existing.id);
+    if (error) { alert('上書きに失敗しました: ' + error.message); return; }
+    alert('テンプレート「' + name + '」を上書きしました');
+  } else {
+    var { error } = await sb.from('templates').insert({ name: name, content: content });
+    if (error) { alert('保存に失敗しました: ' + error.message); return; }
+    alert('テンプレート「' + name + '」を保存しました');
+  }
   var { data } = await sb.from('templates').select('*').order('name');
   TEMPLATES = data || [];
   var sel = document.getElementById('template-select');
   if (sel) {
     sel.innerHTML = '<option value="">テンプレートを選択…</option>' + TEMPLATES.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
+  }
+}
+
+async function deleteMemoTemplate() {
+  if (!TEMPLATES.length) { alert('削除できるテンプレートがありません'); return; }
+  var list = TEMPLATES.map(function(t) { return t.name; }).join('\n');
+  var name = prompt('削除するテンプレート名を入力してください（完全一致）。\n\n現在のテンプレート一覧:\n' + list);
+  if (!name) return;
+  var matches = TEMPLATES.filter(function(t) { return t.name === name; });
+  if (!matches.length) { alert('その名前のテンプレートは見つかりませんでした'); return; }
+  var msg = matches.length > 1
+    ? '同名のテンプレートが' + matches.length + '件あります。すべて削除しますか？'
+    : 'テンプレート「' + name + '」を削除します。よろしいですか？';
+  if (!confirm(msg)) return;
+  var ids = matches.map(function(t) { return t.id; });
+  var { error } = await sb.from('templates').delete().in('id', ids);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  alert('削除しました');
+  var { data } = await sb.from('templates').select('*').order('name');
+  TEMPLATES = data || [];
+  var sel2 = document.getElementById('template-select');
+  if (sel2) {
+    sel2.innerHTML = '<option value="">テンプレートを選択…</option>' + TEMPLATES.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
   }
 }
 
