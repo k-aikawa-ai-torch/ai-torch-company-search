@@ -23,6 +23,16 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .nav-btn.active{color:#14213D;border-bottom-color:#14213D;font-weight:500}
 .main{max-width:1000px;margin:0 auto;padding:16px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.filters-advanced{display:none;flex-wrap:wrap;gap:16px;margin-bottom:12px;padding:14px 16px;background:#fff;border:1px solid #DEE7F7;border-radius:8px}
+.filters-advanced.show{display:flex}
+.range-group{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B7A99}
+.range-group label{margin-right:2px;color:#14213D;font-weight:500;white-space:nowrap}
+.range-group input{height:28px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px;width:90px}
+.range-group input[type=date]{width:132px}
+.filter-reset{height:28px;padding:0 12px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#6B7A99}
+.job-type-picker{display:flex;flex-wrap:wrap;gap:6px}
+.jt-tag{padding:5px 12px;border:1px solid #DEE7F7;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#555;white-space:nowrap;transition:all 0.15s;user-select:none}
+.jt-tag.on{background:#14213D;color:#fff;border-color:#14213D}
 .filters input{height:36px;padding:0 12px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px;min-width:200px}
 .filters select{height:36px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
@@ -174,6 +184,48 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <option>ワークライフバランス</option><option>技術力・スキルアップ</option><option>安定性</option>
         <option>社風・人間関係</option><option>事業内容への共感</option><option>マネジメント経験</option>
       </select>
+      <select id="job-filter" onchange="render()">
+        <option value="">全職種</option>
+        <option>CxO</option><option>SRE/クラウドエンジニア</option><option>開発エンジニア</option>
+        <option>AI/DS</option><option>デザイナー</option><option>インフラエンジニア</option>
+        <option>コンサル/PM</option><option>PdM</option><option>QA</option>
+        <option>マーケター</option><option>WEBディレ</option><option>人事</option>
+        <option>Bizdev</option><option>営業</option><option>その他</option>
+      </select>
+      <select id="attach-filter" onchange="render()">
+        <option value="">添付 全て</option>
+        <option value="yes">添付あり</option>
+        <option value="no">添付なし</option>
+      </select>
+      <button type="button" id="adv-filter-toggle" onclick="toggleAdvFilters()" style="height:34px;padding:0 12px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:#14213D">詳細フィルタ ▾</button>
+    </div>
+    <div class="filters-advanced" id="filters-advanced">
+      <div class="range-group">
+        <label>現年収(万)</label>
+        <input type="number" id="cs-min" placeholder="下限" onchange="render()">〜
+        <input type="number" id="cs-max" placeholder="上限" onchange="render()">
+      </div>
+      <div class="range-group">
+        <label>希望年収(万)</label>
+        <input type="number" id="ds-min" placeholder="下限" onchange="render()">〜
+        <input type="number" id="ds-max" placeholder="上限" onchange="render()">
+      </div>
+      <div class="range-group">
+        <label>入社想定日</label>
+        <input type="date" id="ej-from" onchange="render()">〜
+        <input type="date" id="ej-to" onchange="render()">
+      </div>
+      <div class="range-group">
+        <label>登録日</label>
+        <input type="date" id="reg-from" onchange="render()">〜
+        <input type="date" id="reg-to" onchange="render()">
+      </div>
+      <div class="range-group">
+        <label>NextAction日</label>
+        <input type="date" id="na-from" onchange="render()">〜
+        <input type="date" id="na-to" onchange="render()">
+      </div>
+      <button type="button" class="filter-reset" onclick="resetAdvFilters()">詳細フィルタをクリア</button>
     </div>
     <div class="top-bar">
       <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
@@ -272,6 +324,10 @@ const STATUS_LIST = ['進行中','将来的に声かけ予定_再アプローチ
 const SOURCE_LIST = ['スカウト（ビズリーチ）','レバテックダイレクト','スカウト（LinkedIn）','スカウト（AMBI）','スカウト（YOUTRUST）','リファラル（求職者紹介）','リファラル（社員経由）','自社HP','アライアンス'];
 const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%'];
 const AXIS_LIST = ['年収アップ','裁量権','事業成長性','ワークライフバランス','技術力・スキルアップ','安定性','社風・人間関係','事業内容への共感','マネジメント経験'];
+const JOB_TYPE_LIST = ['CxO','SRE/クラウドエンジニア','開発エンジニア','AI/DS','デザイナー','インフラエンジニア','コンサル/PM','PdM','QA','マーケター','WEBディレ','人事','Bizdev','営業','その他'];
+function jobTypeArray(c) {
+  return (c.job_type || '').split(/[,、]/).map(s => s.trim()).filter(Boolean);
+}
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_辞退','終了_不合格','終了_その他'];
 
@@ -339,6 +395,15 @@ let sort2Dir = 1;
 function cleanSource(s) {
   return (s || '').replace(/^[（(]+/, '').trim();
 }
+function toggleAdvFilters() {
+  document.getElementById('filters-advanced').classList.toggle('show');
+}
+function resetAdvFilters() {
+  ['cs-min','cs-max','ds-min','ds-max','ej-from','ej-to','reg-from','reg-to','na-from','na-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('job-filter').value = '';
+  document.getElementById('attach-filter').value = '';
+  render();
+}
 function toggleSortDir(which) {
   if (which === 1) {
     sort1Dir *= -1;
@@ -380,6 +445,18 @@ function render() {
   const sourceFilter = document.getElementById('source-filter').value;
   const yomiFilter = document.getElementById('yomi-filter').value;
   const axisFilter = document.getElementById('axis-filter').value;
+  const jobFilter = document.getElementById('job-filter').value;
+  const attachFilter = document.getElementById('attach-filter').value;
+  const csMin = document.getElementById('cs-min').value ? parseInt(document.getElementById('cs-min').value) * 10000 : null;
+  const csMax = document.getElementById('cs-max').value ? parseInt(document.getElementById('cs-max').value) * 10000 : null;
+  const dsMin = document.getElementById('ds-min').value ? parseInt(document.getElementById('ds-min').value) * 10000 : null;
+  const dsMax = document.getElementById('ds-max').value ? parseInt(document.getElementById('ds-max').value) * 10000 : null;
+  const ejFrom = document.getElementById('ej-from').value;
+  const ejTo = document.getElementById('ej-to').value;
+  const regFrom = document.getElementById('reg-from').value;
+  const regTo = document.getElementById('reg-to').value;
+  const naFrom = document.getElementById('na-from').value;
+  const naTo = document.getElementById('na-to').value;
   const todayStr = today();
   const sort1 = document.getElementById('sort1').value;
   const sort2 = document.getElementById('sort2').value;
@@ -394,6 +471,19 @@ function render() {
     if (sourceFilter && c.source !== sourceFilter) return false;
     if (yomiFilter && c.decision_yomi !== yomiFilter) return false;
     if (axisFilter && c.top_priority_axis !== axisFilter) return false;
+    if (jobFilter && !jobTypeArray(c).includes(jobFilter)) return false;
+    if (attachFilter === 'yes' && !FILE_FLAGS.has(c.id)) return false;
+    if (attachFilter === 'no' && FILE_FLAGS.has(c.id)) return false;
+    if (csMin !== null && (c.current_salary||0) < csMin) return false;
+    if (csMax !== null && (c.current_salary||0) > csMax) return false;
+    if (dsMin !== null && (c.desired_salary||0) < dsMin) return false;
+    if (dsMax !== null && (c.desired_salary||0) > dsMax) return false;
+    if (ejFrom && (!c.expected_join_date || c.expected_join_date < ejFrom)) return false;
+    if (ejTo && (!c.expected_join_date || c.expected_join_date > ejTo)) return false;
+    if (regFrom && (!c.registered_at || c.registered_at < regFrom)) return false;
+    if (regTo && (!c.registered_at || c.registered_at > regTo)) return false;
+    if (naFrom && (!c.next_action_day || c.next_action_day < naFrom)) return false;
+    if (naTo && (!c.next_action_day || c.next_action_day > naTo)) return false;
     return true;
   });
   res.sort((a,b) => { const r1=sort1Dir*compareCandBy(sort1,a,b); return r1!==0?r1:sort2Dir*compareCandBy(sort2,a,b); });
@@ -543,7 +633,12 @@ function renderEditForm(c) {
     '<div class="form-group"><label>フェーズ</label><select id="f-phase"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="f-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
     '<div class="form-group"><label>流入経路</label><select id="f-source"><option value="">未設定</option>' + sourceOptions + '</select></div>' +
-    '<div class="form-group"><label>職種</label><input id="f-job-type" value="' + (c ? c.job_type||'' : '') + '" placeholder="例：開発エンジニア"></div>' +
+    '<div class="form-group full"><label>職種</label><div class="job-type-picker" id="f-job-type-picker">' +
+      JOB_TYPE_LIST.map(function(j) {
+        var on = c && jobTypeArray(c).includes(j) ? ' on' : '';
+        return '<span class="jt-tag' + on + '" onclick="this.classList.toggle(\'on\')">' + j + '</span>';
+      }).join('') +
+    '</div></div>' +
     '<div class="form-group"><label>現所属/概歴</label><input id="f-current-company" value="' + (c ? (c.current_company||'').replace(/"/g,'&quot;') : '') + '"></div>' +
     '<div class="form-group"><label>希望年収（円）</label><input id="f-desired-salary" type="number" value="' + (c ? c.desired_salary||'' : '') + '"></div>' +
     '<div class="form-group"><label>現年収（円）</label><input id="f-current-salary" type="number" value="' + (c ? c.current_salary||'' : '') + '"></div>' +
@@ -684,7 +779,7 @@ async function saveCandidate() {
     phase: document.getElementById('f-phase').value || null,
     status: document.getElementById('f-status').value || null,
     source: document.getElementById('f-source').value || null,
-    job_type: document.getElementById('f-job-type').value || null,
+    job_type: Array.from(document.querySelectorAll('#f-job-type-picker .jt-tag.on')).map(el => el.textContent).join(', ') || null,
     current_company: document.getElementById('f-current-company').value || null,
     desired_salary: document.getElementById('f-desired-salary').value ? parseInt(document.getElementById('f-desired-salary').value) : null,
     current_salary: document.getElementById('f-current-salary').value ? parseInt(document.getElementById('f-current-salary').value) : null,
