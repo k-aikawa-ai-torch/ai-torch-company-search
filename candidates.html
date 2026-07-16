@@ -572,6 +572,7 @@ function renderDetail(c, pipelines) {
   const isToday = c.next_action_day === todayStr;
   const isOverdue = c.next_action_day && c.next_action_day < todayStr;
   const memoHtml = c.memo ? '<div class="markdown-preview">' + marked.parse(c.memo) + '</div>' : '<div style="color:#aaa;font-size:12px">メモなし</div>';
+  const recommendationHtml = c.recommendation_text ? '<div class="markdown-preview" style="white-space:pre-wrap">' + c.recommendation_text.replace(/</g,'&lt;') + '</div>' : '<div style="color:#aaa;font-size:12px">推薦文なし</div>';
 
   let pipelineRows = '';
   if (pipelines.length > 0) {
@@ -617,6 +618,7 @@ function renderDetail(c, pipelines) {
     (c.next_action ? '<div class="detail-item detail-full"><div class="detail-label">ネクストアクション</div><div class="detail-value" style="white-space:pre-wrap;margin-top:4px">' + c.next_action + '</div></div>' : '') +
     '</div>' +
     '<div class="section-title">メモ</div>' + memoHtml +
+    '<div class="section-title">推薦文</div>' + recommendationHtml +
     '<div class="section-title">提案求人（' + pipelines.length + '件）</div>' +
     '<div style="margin-bottom:8px;text-align:right"><button class="add-job-btn" onclick="openPipelineAdd(\'' + c.id + '\')">＋ 求人追加</button></div>' +
     pipelineTable +
@@ -678,6 +680,14 @@ function renderEditForm(c) {
     '<div style="margin-bottom:4px;font-size:11px;color:#aaa">**太字** _斜体_ ## 見出し - 箇条書き</div>' +
     '<textarea id="f-memo" style="height:200px;font-family:monospace" onkeydown="handleMemoKeydown(event)">' + (c ? c.memo||'' : '') + '</textarea>' +
     '<div id="memo-preview" class="markdown-preview" style="display:none;min-height:200px"></div>' +
+    '</div>' +
+    '<div class="form-group full">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+    '<label>推薦文</label>' +
+    (c ? '<button type="button" onclick="copyRecommendationPrompt(\'' + c.id + '\')" style="padding:3px 10px;font-size:11px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer">📋 Claude用の情報をコピー</button>' : '') +
+    '</div>' +
+    '<div style="font-size:11px;color:#aaa;margin-bottom:4px">コピーした内容をClaudeに貼り付けて送信すると、recommendation-writerスキルが下書きを作成します（先に候補者を保存してから使ってください）。生成された文章をここに貼り付けて保存してください。</div>' +
+    '<textarea id="f-recommendation" style="height:220px;font-family:monospace">' + (c ? c.recommendation_text||'' : '') + '</textarea>' +
     '</div>' +
     '</div>' +
     '<div class="form-actions">' +
@@ -813,6 +823,34 @@ async function deleteMemoTemplate() {
   }
 }
 
+function copyRecommendationPrompt(candidateId) {
+  var c = DATA.find(function(x) { return x.id === candidateId; });
+  if (!c) { alert('候補者情報が取得できませんでした。一度モーダルを閉じて開き直してください。'); return; }
+  var lines = [];
+  lines.push('推薦文を作って');
+  lines.push('');
+  lines.push('■候補者名：' + (c.name || ''));
+  lines.push('■現所属/概歴：' + (c.current_company || ''));
+  lines.push('■職種：' + (c.job_type || ''));
+  lines.push('■現年収：' + (c.current_salary ? Math.round(c.current_salary/10000) + '万円' : ''));
+  lines.push('■希望年収：' + (c.desired_salary ? Math.round(c.desired_salary/10000) + '万円' : ''));
+  lines.push('■入社想定日：' + (c.expected_join_date || ''));
+  lines.push('■転職軸(優先1位)：' + (c.top_priority_axis || ''));
+  lines.push('■電話番号：' + (c.phone || ''));
+  lines.push('');
+  lines.push('■面談メモ：');
+  lines.push(c.memo || '(面談メモ未入力)');
+  lines.push('');
+  lines.push('※職務経歴書は別途添付ファイルをご確認ください（候補者管理の「添付」列からダウンロードできます）。推薦先の求人情報がある場合は、この下に貼り付けてから送信してください。');
+
+  var text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(function() {
+    alert('コピーしました。Claudeに貼り付けて送信してください。');
+  }, function() {
+    alert('コピーに失敗しました。手動で選択してコピーしてください:\n\n' + text);
+  });
+}
+
 async function saveCandidate() {
   var name = document.getElementById('f-name').value.trim();
   if (!name) { alert('候補者名を入力してください'); return; }
@@ -840,6 +878,7 @@ async function saveCandidate() {
     next_action_day: document.getElementById('f-next-action-day').value || null,
     next_action: document.getElementById('f-next-action').value || null,
     memo: memoEl ? memoEl.value : null,
+    recommendation_text: document.getElementById('f-recommendation') ? document.getElementById('f-recommendation').value : null,
     updated_at: new Date().toISOString(),
   };
   var error;
@@ -880,6 +919,7 @@ function openPipelineAdd(candidateId) {
 async function openPipelineEdit(pipelineId) {
   currentPipelineId = pipelineId;
   var { data } = await sb.from('pipeline').select('*').eq('id', pipelineId).single();
+  currentPipelineCandidateId = data ? data.candidate_id : null;
   showPipelineModal(data);
 }
 
