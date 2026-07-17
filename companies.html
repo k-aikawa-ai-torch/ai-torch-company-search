@@ -32,6 +32,10 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .count{font-size:13px;color:#6B7A99}
 .sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
 .sort-wrap select{height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff}
+.filters-advanced{display:none;flex-wrap:wrap;gap:16px;margin-bottom:12px;padding:14px 16px;background:#fff;border:1px solid #DEE7F7;border-radius:8px}
+.filters-advanced.show{display:flex}
+.filter-btn{height:34px;padding:0 12px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:#14213D}
+.tech-and-input{height:34px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px;width:200px}
 .list{display:flex;flex-direction:column;gap:6px}
 .card{background:#fff;border:1px solid #DEE7F7;border-radius:10px;padding:12px 16px;transition:border-color 0.15s}
 .card:hover{border-color:#0D40D9}
@@ -98,23 +102,17 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
       <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
     </div>
     <div class="filters">
-      <select id="tier" onchange="render()">
-        <option value="">全Tier</option>
-        <option value="1">Tier 1</option>
-        <option value="2">Tier 2</option>
-        <option value="3">Tier 3</option>
-      </select>
       <select id="industry" onchange="render()"></select>
       <select id="role" onchange="render()"></select>
+      <select id="area_filter" onchange="render()"></select>
+      <select id="member_filter" onchange="render()"></select>
       <div class="score-filter">
+        <span>内定率≥</span>
+        <input type="number" id="min_naitei" onchange="render()" placeholder="%" min="0" max="100" style="width:56px;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px">%
+        <span>承諾率≥</span>
+        <input type="number" id="min_offer" onchange="render()" placeholder="-" style="width:56px;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px">
         <span>年収≥</span>
         <select id="min_salary" onchange="render()">
-          <option value="0">-</option>
-          <option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-        </select>
-        <span>WLB≥</span>
-        <select id="min_wlb" onchange="render()">
           <option value="0">-</option>
           <option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -125,23 +123,59 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
         </select>
+        <span>社会貢献≥</span>
+        <select id="min_social" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
       </div>
+    </div>
+    <div class="tag-filters" id="tech-tag-filters" style="margin-bottom:6px">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">技術:</span>
     </div>
     <div class="tag-filters">
       <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
       <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
+      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
+      <button class="filter-btn" type="button" id="adv-filter-toggle" onclick="toggleAdvFilters()">詳細フィルタ ▾</button>
+      <button class="filter-btn" type="button" onclick="clearAllFilters()">全クリア</button>
+      <select id="preset-select" onchange="applyPreset()" class="filter-btn" style="padding:0 8px"><option value="">検索条件を選択…</option></select>
+      <button class="filter-btn" type="button" onclick="saveSearchPreset()">💾 保存</button>
+      <button class="filter-btn" type="button" onclick="deleteSearchPreset()" style="color:#b3261e">🗑️</button>
+    </div>
+    <div class="filters-advanced" id="filters-advanced">
+      <select id="tier" onchange="render()">
+        <option value="">全Tier</option>
+        <option value="1">Tier 1</option>
+        <option value="2">Tier 2</option>
+        <option value="3">Tier 3</option>
+      </select>
+      <div class="score-filter">
+        <span>WLB≥</span>
+        <select id="min_wlb" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+        <span>ネームバリュー≥</span>
+        <select id="min_brand" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+      </div>
       <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
       <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
-      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
       <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
       <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
     </div>
     <div class="top-bar">
       <span class="count" id="count"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
         <label>第1ソート:</label>
-        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
-          <option value="offer">承諾率スコア</option>
+        <select id="sort1" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
+          <option value="naitei">内定率スコア</option><option value="offer">承諾率スコア</option>
           <option value="salary">年収</option>
           <option value="wlb">WLB</option>
           <option value="tech">技術力</option>
@@ -151,10 +185,11 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="tier">Tier</option>
           <option value="name">企業名</option>
         </select>
+        <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
         <label>第2ソート:</label>
-        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+        <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
           <option value="name">企業名</option>
-          <option value="offer">承諾率スコア</option>
+          <option value="naitei">内定率スコア</option><option value="offer">承諾率スコア</option>
           <option value="salary">年収</option>
           <option value="wlb">WLB</option>
           <option value="tech">技術力</option>
@@ -163,6 +198,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="brand">ネームバリュー</option>
           <option value="tier">Tier</option>
         </select>
+        <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
       </div>
     </div>
     <div id="list"><div class="loading">データを読み込み中…</div></div>
@@ -179,7 +215,11 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let DATA = [];
+let ALL_MEMBERS = [];
 let activeTags = new Set();
+let activeTechTags = new Set();
+let sort1Dir = -1;
+let sort2Dir = -1;
 
 async function login() {
   const email = document.getElementById('email-input').value;
@@ -211,26 +251,176 @@ sb.auth.getSession().then(({ data: { session } }) => {
 });
 
 async function loadData() {
-  const { data, error } = await sb.from('companies').select('*').order('score_offer', { ascending: false });
-  if (error) {
+  const [companiesRes, membersRes] = await Promise.all([
+    sb.from('companies').select('*, members(display_name,name)').order('acceptance_rate', { ascending: false }),
+    sb.from('members').select('*'),
+  ]);
+  if (companiesRes.error) {
     document.getElementById('list').innerHTML = '<div class="error">データの読み込みに失敗しました。</div>';
     return;
   }
-  DATA = data;
+  DATA = companiesRes.data;
+  ALL_MEMBERS = membersRes.data || [];
   document.getElementById('header-count').textContent = DATA.length + '社';
   initSelects();
+  await loadPresets();
   render();
 }
 
 function initSelects() {
   const allIndustries = [...new Set(DATA.flatMap(c => (c.industry||'').split(/,\s*/)))].filter(Boolean).sort();
   const allRoles = [...new Set(DATA.flatMap(c => (c.roles||'').split(/,\s*/)))].filter(Boolean).sort();
+  const allAreas = [...new Set(DATA.flatMap(c => (c.area||'').split(/,\s*/)))].filter(Boolean).sort();
+  const allTech = [...new Set(DATA.flatMap(c => (c.tech||'').split(/,\s*/)))].filter(Boolean).sort();
   const indSel = document.getElementById('industry');
   const roleSel = document.getElementById('role');
+  const areaSel = document.getElementById('area_filter');
+  const memberSel = document.getElementById('member_filter');
   indSel.innerHTML = '<option value="">全業界</option>';
   roleSel.innerHTML = '<option value="">全職種</option>';
+  areaSel.innerHTML = '<option value="">全エリア</option>';
+  memberSel.innerHTML = '<option value="">全担当者</option>';
   allIndustries.forEach(i => { const o = document.createElement('option'); o.value=i; o.textContent=i; indSel.appendChild(o); });
   allRoles.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; roleSel.appendChild(o); });
+  allAreas.forEach(a => { const o = document.createElement('option'); o.value=a; o.textContent=a; areaSel.appendChild(o); });
+  ALL_MEMBERS.forEach(m => { const o = document.createElement('option'); o.value=m.id; o.textContent=m.display_name||m.name; memberSel.appendChild(o); });
+
+  const techWrap = document.getElementById('tech-tag-filters');
+  techWrap.innerHTML = '<span style="font-size:12px;color:#6B7A99;margin-right:2px">技術:</span>' +
+    allTech.map(t => '<span class="tag" data-tech="' + t + '" onclick="toggleTechTag(this)">' + t + '</span>').join('');
+}
+
+function toggleTechTag(el) {
+  const t = el.dataset.tech;
+  activeTechTags.has(t) ? activeTechTags.delete(t) : activeTechTags.add(t);
+  el.classList.toggle('on');
+  render();
+}
+
+function toggleSortDir(which) {
+  if (which === 1) {
+    sort1Dir *= -1;
+    document.getElementById('sort1-dir-btn').textContent = sort1Dir === 1 ? '▲' : '▼';
+  } else {
+    sort2Dir *= -1;
+    document.getElementById('sort2-dir-btn').textContent = sort2Dir === 1 ? '▲' : '▼';
+  }
+  render();
+}
+
+function toggleAdvFilters() {
+  document.getElementById('filters-advanced').classList.toggle('show');
+}
+
+function clearAllFilters() {
+  document.getElementById('q').value = '';
+  document.getElementById('tier').value = '';
+  document.getElementById('industry').value = '';
+  document.getElementById('role').value = '';
+  document.getElementById('area_filter').value = '';
+  document.getElementById('member_filter').value = '';
+  document.getElementById('min_naitei').value = '';
+  document.getElementById('min_offer').value = '';
+  ['min_salary','min_wlb','min_tech','min_social','min_brand'].forEach(id => document.getElementById(id).value = '0');
+  activeTags.clear();
+  activeTechTags.clear();
+  document.querySelectorAll('.tag.on').forEach(el => el.classList.remove('on'));
+  document.getElementById('preset-select').value = '';
+  render();
+}
+
+function getCurrentFilterState() {
+  return {
+    q: document.getElementById('q').value,
+    tier: document.getElementById('tier').value,
+    industry: document.getElementById('industry').value,
+    role: document.getElementById('role').value,
+    activeTechTags: Array.from(activeTechTags),
+    area_filter: document.getElementById('area_filter').value,
+    member_filter: document.getElementById('member_filter').value,
+    min_naitei: document.getElementById('min_naitei').value,
+    min_offer: document.getElementById('min_offer').value,
+    min_salary: document.getElementById('min_salary').value,
+    min_wlb: document.getElementById('min_wlb').value,
+    min_tech: document.getElementById('min_tech').value,
+    min_social: document.getElementById('min_social').value,
+    min_brand: document.getElementById('min_brand').value,
+    activeTags: Array.from(activeTags),
+    sort1: document.getElementById('sort1').value,
+    sort2: document.getElementById('sort2').value,
+    sort1Dir: sort1Dir,
+    sort2Dir: sort2Dir,
+  };
+}
+
+function applyFilterState(state) {
+  document.getElementById('q').value = state.q || '';
+  document.getElementById('tier').value = state.tier || '';
+  document.getElementById('industry').value = state.industry || '';
+  document.getElementById('role').value = state.role || '';
+  activeTechTags = new Set(state.activeTechTags || []);
+  document.querySelectorAll('#tech-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTechTags.has(el.dataset.tech)); });
+  document.getElementById('area_filter').value = state.area_filter || '';
+  document.getElementById('member_filter').value = state.member_filter || '';
+  document.getElementById('min_naitei').value = state.min_naitei || '';
+  document.getElementById('min_offer').value = state.min_offer || '';
+  document.getElementById('min_salary').value = state.min_salary || '0';
+  document.getElementById('min_wlb').value = state.min_wlb || '0';
+  document.getElementById('min_tech').value = state.min_tech || '0';
+  document.getElementById('min_social').value = state.min_social || '0';
+  document.getElementById('min_brand').value = state.min_brand || '0';
+  activeTags = new Set(state.activeTags || []);
+  document.querySelectorAll('.tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTags.has(el.dataset.key)); });
+  document.getElementById('sort1').value = state.sort1 || 'offer';
+  document.getElementById('sort2').value = state.sort2 || 'name';
+  sort1Dir = state.sort1Dir || -1;
+  sort2Dir = state.sort2Dir || -1;
+  document.getElementById('sort1-dir-btn').textContent = sort1Dir === 1 ? '▲' : '▼';
+  document.getElementById('sort2-dir-btn').textContent = sort2Dir === 1 ? '▲' : '▼';
+  render();
+}
+
+let PRESETS = [];
+async function loadPresets() {
+  const { data } = await sb.from('company_search_presets').select('*').order('name');
+  PRESETS = data || [];
+  const sel = document.getElementById('preset-select');
+  sel.innerHTML = '<option value="">検索条件を選択…</option>' + PRESETS.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+}
+
+function applyPreset() {
+  const id = document.getElementById('preset-select').value;
+  if (!id) return;
+  const preset = PRESETS.find(p => p.id === id);
+  if (preset) applyFilterState(preset.filters);
+}
+
+async function saveSearchPreset() {
+  const name = prompt('検索条件の名前を入力してください（既存と同じ名前を入力すると上書きされます）:');
+  if (!name) return;
+  const filters = getCurrentFilterState();
+  const existing = PRESETS.find(p => p.name === name);
+  if (existing) {
+    if (!confirm('「' + name + '」は既に存在します。上書きしますか？')) return;
+    const { error } = await sb.from('company_search_presets').update({ filters: filters }).eq('id', existing.id);
+    if (error) { alert('上書きに失敗しました: ' + error.message); return; }
+  } else {
+    const { error } = await sb.from('company_search_presets').insert({ name: name, filters: filters });
+    if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  }
+  alert('保存しました');
+  await loadPresets();
+}
+
+async function deleteSearchPreset() {
+  const id = document.getElementById('preset-select').value;
+  if (!id) { alert('削除する検索条件を選択してください'); return; }
+  const preset = PRESETS.find(p => p.id === id);
+  if (!preset) return;
+  if (!confirm('「' + preset.name + '」を削除します。よろしいですか？')) return;
+  const { error } = await sb.from('company_search_presets').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  await loadPresets();
 }
 
 function toggleTag(el) {
@@ -241,6 +431,17 @@ function toggleTag(el) {
 }
 
 function toggleCard(el) { el.closest('.card').classList.toggle('open'); }
+
+function resolveMember(c) {
+  if (c.members) return c.members.display_name || c.members.name;
+  const aikawa = ALL_MEMBERS.find(m => (m.display_name||m.name||'').includes('相川'));
+  return aikawa ? (aikawa.display_name||aikawa.name) : null;
+}
+function resolveMemberId(c) {
+  if (c.member_id) return c.member_id;
+  const aikawa = ALL_MEMBERS.find(m => (m.display_name||m.name||'').includes('相川'));
+  return aikawa ? aikawa.id : null;
+}
 
 function scoreBar(val) {
   if (val === null || val === undefined) return '<span style="font-size:11px;color:#ccc">-</span>';
@@ -253,9 +454,15 @@ function render() {
   const tier = document.getElementById('tier').value;
   const ind = document.getElementById('industry').value;
   const role = document.getElementById('role').value;
+  const areaFilter = document.getElementById('area_filter').value;
+  const memberFilter = document.getElementById('member_filter').value;
+  const minNaitei = +document.getElementById('min_naitei').value || 0;
+  const minOffer = +document.getElementById('min_offer').value || 0;
   const minSalary = +document.getElementById('min_salary').value;
   const minWlb = +document.getElementById('min_wlb').value;
   const minTech = +document.getElementById('min_tech').value;
+  const minSocial = +document.getElementById('min_social').value;
+  const minBrand = +document.getElementById('min_brand').value;
   const showStopped = activeTags.has('stopped');
 
   let res = DATA.filter(c => {
@@ -263,9 +470,19 @@ function render() {
     if (tier && String(c.tier) !== tier) return false;
     if (ind && !(c.industry||'').split(/,\s*/).includes(ind)) return false;
     if (role && !(c.roles||'').split(/,\s*/).includes(role)) return false;
+    if (activeTechTags.size) {
+      const cTechs = (c.tech||'').split(/,\s*/);
+      for (const t of activeTechTags) { if (!cTechs.includes(t)) return false; }
+    }
+    if (areaFilter && !(c.area||'').split(/,\s*/).includes(areaFilter)) return false;
+    if (memberFilter && resolveMemberId(c) !== memberFilter) return false;
+    if (minNaitei && (c.offer_rate === null || c.offer_rate === undefined || c.offer_rate * 100 < minNaitei)) return false;
+    if (minOffer && (c.acceptance_rate === null || c.acceptance_rate === undefined || c.acceptance_rate < minOffer)) return false;
     if (minSalary && (c.score_salary === null || c.score_salary < minSalary)) return false;
     if (minWlb && (c.score_wlb === null || c.score_wlb < minWlb)) return false;
     if (minTech && (c.score_tech === null || c.score_tech < minTech)) return false;
+    if (minSocial && (c.score_social === null || c.score_social < minSocial)) return false;
+    if (minBrand && (c.score_brand === null || c.score_brand < minBrand)) return false;
     for (const k of activeTags) {
       if (k === 'stopped') continue;
       if (!c[k]) return false;
@@ -277,19 +494,19 @@ function render() {
   const sort1 = document.getElementById('sort1').value;
   const sort2 = document.getElementById('sort2').value;
 
-  const SCORE_MAP = {offer:'score_offer',salary:'score_salary',wlb:'score_wlb',tech:'score_tech',autonomy:'score_autonomy',social:'score_social',brand:'score_brand'};
+  const SCORE_MAP = {naitei:'offer_rate',offer:'acceptance_rate',salary:'score_salary',wlb:'score_wlb',tech:'score_tech',autonomy:'score_autonomy',social:'score_social',brand:'score_brand'};
 
   function compareCompBy(key, a, b) {
     if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
     if (key === 'tier') return (a.tier||99) - (b.tier||99);
-    if (SCORE_MAP[key]) return (b[SCORE_MAP[key]]||0) - (a[SCORE_MAP[key]]||0);
+    if (SCORE_MAP[key]) return (a[SCORE_MAP[key]]||0) - (b[SCORE_MAP[key]]||0);
     return 0;
   }
 
   res.sort((a,b) => {
-    const r1 = compareCompBy(sort1, a, b);
+    const r1 = sort1Dir * compareCompBy(sort1, a, b);
     if (r1 !== 0) return r1;
-    return compareCompBy(sort2, a, b);
+    return sort2Dir * compareCompBy(sort2, a, b);
   });
 
   document.getElementById('count').textContent = res.length + '社';
@@ -316,7 +533,9 @@ function render() {
       </div>
       <div class="card-meta" onclick="toggleCard(this)">
         <span class="industry">${c.industry||''}</span>
+        ${c.offer_rate!=null ? `<span class="pill">内定率 ${Math.round(c.offer_rate*100)}%</span>` : ''}
         ${c.acceptance_rate ? `<span class="pill">承諾率 ${c.acceptance_rate}</span>` : ''}
+        ${resolveMember(c) ? `<span class="pill" style="color:#6B7A99">👤 ${resolveMember(c)}</span>` : ''}
       </div>
       <div class="scores" onclick="toggleCard(this)">
         ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社会貢献',c.score_social]].map(([l,v]) =>
