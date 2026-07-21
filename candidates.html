@@ -319,6 +319,7 @@ let currentTab = 'active';
 let currentId = null;
 let currentPipelineId = null;
 let currentPipelineCandidateId = null;
+let currentPipelineOriginalPhase = null;
 let memoMode = 'edit';
 
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
@@ -932,12 +933,14 @@ document.getElementById('modal').addEventListener('click', function(e) {
 function openPipelineAdd(candidateId) {
   currentPipelineId = null;
   currentPipelineCandidateId = candidateId;
+  currentPipelineOriginalPhase = null;
   showPipelineModal(null);
 }
 
 async function openPipelineEdit(pipelineId) {
   currentPipelineId = pipelineId;
   var { data } = await sb.from('pipeline').select('*').eq('id', pipelineId).single();
+  currentPipelineOriginalPhase = data ? data.phase : null;
   currentPipelineCandidateId = data ? data.candidate_id : null;
   showPipelineModal(data);
 }
@@ -979,6 +982,8 @@ async function savePipeline() {
     updated_at: new Date().toISOString(),
   };
   var error;
+  var savedPipelineId = currentPipelineId;
+  var phaseChanged = payload.phase && payload.phase !== currentPipelineOriginalPhase;
   if (currentPipelineId) {
     var res = await sb.from('pipeline').update(payload).eq('id', currentPipelineId);
     error = res.error;
@@ -986,10 +991,15 @@ async function savePipeline() {
     var candidate = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
     payload.candidate_id = currentPipelineCandidateId;
     payload.member_id = candidate ? candidate.member_id : null;
-    var res2 = await sb.from('pipeline').insert(payload);
+    var res2 = await sb.from('pipeline').insert(payload).select().single();
     error = res2.error;
+    if (!error && res2.data) { savedPipelineId = res2.data.id; }
+    phaseChanged = !!payload.phase; // 新規作成時は初回フェーズとして必ず記録
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  if (phaseChanged && savedPipelineId) {
+    await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase });
+  }
   document.getElementById('pipeline-save-msg').textContent = '✅ 保存しました';
   setTimeout(async function() {
     closePipelineModal();
