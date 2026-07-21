@@ -106,6 +106,12 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
       <select id="role" onchange="render()"></select>
       <select id="area_filter" onchange="render()"></select>
       <select id="member_filter" onchange="render()"></select>
+      <select id="axis_filter" onchange="render()">
+        <option value="">全転職軸</option>
+        <option>年収アップ</option><option>裁量権</option><option>事業成長性</option>
+        <option>ワークライフバランス</option><option>技術力・スキルアップ</option><option>安定性</option>
+        <option>社風・人間関係</option><option>事業内容への共感</option><option>マネジメント経験</option>
+      </select>
       <div class="score-filter">
         <span>内定率≥</span>
         <input type="number" id="min_naitei" onchange="render()" placeholder="%" min="0" max="100" style="width:56px;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px">%
@@ -160,6 +166,12 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
         </select>
         <span>ネームバリュー≥</span>
         <select id="min_brand" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+        <span>社風≥</span>
+        <select id="min_culture" onchange="render()">
           <option value="0">-</option>
           <option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -319,9 +331,10 @@ function clearAllFilters() {
   document.getElementById('role').value = '';
   document.getElementById('area_filter').value = '';
   document.getElementById('member_filter').value = '';
+  document.getElementById('axis_filter').value = '';
   document.getElementById('min_naitei').value = '';
   document.getElementById('min_offer').value = '';
-  ['min_salary','min_wlb','min_tech','min_social','min_brand'].forEach(id => document.getElementById(id).value = '0');
+  ['min_salary','min_wlb','min_tech','min_social','min_brand','min_culture'].forEach(id => document.getElementById(id).value = '0');
   activeTags.clear();
   activeTechTags.clear();
   document.querySelectorAll('.tag.on').forEach(el => el.classList.remove('on'));
@@ -338,6 +351,7 @@ function getCurrentFilterState() {
     activeTechTags: Array.from(activeTechTags),
     area_filter: document.getElementById('area_filter').value,
     member_filter: document.getElementById('member_filter').value,
+    axis_filter: document.getElementById('axis_filter').value,
     min_naitei: document.getElementById('min_naitei').value,
     min_offer: document.getElementById('min_offer').value,
     min_salary: document.getElementById('min_salary').value,
@@ -345,6 +359,7 @@ function getCurrentFilterState() {
     min_tech: document.getElementById('min_tech').value,
     min_social: document.getElementById('min_social').value,
     min_brand: document.getElementById('min_brand').value,
+    min_culture: document.getElementById('min_culture').value,
     activeTags: Array.from(activeTags),
     sort1: document.getElementById('sort1').value,
     sort2: document.getElementById('sort2').value,
@@ -362,6 +377,7 @@ function applyFilterState(state) {
   document.querySelectorAll('#tech-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTechTags.has(el.dataset.tech)); });
   document.getElementById('area_filter').value = state.area_filter || '';
   document.getElementById('member_filter').value = state.member_filter || '';
+  document.getElementById('axis_filter').value = state.axis_filter || '';
   document.getElementById('min_naitei').value = state.min_naitei || '';
   document.getElementById('min_offer').value = state.min_offer || '';
   document.getElementById('min_salary').value = state.min_salary || '0';
@@ -369,6 +385,7 @@ function applyFilterState(state) {
   document.getElementById('min_tech').value = state.min_tech || '0';
   document.getElementById('min_social').value = state.min_social || '0';
   document.getElementById('min_brand').value = state.min_brand || '0';
+  document.getElementById('min_culture').value = state.min_culture || '0';
   activeTags = new Set(state.activeTags || []);
   document.querySelectorAll('.tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTags.has(el.dataset.key)); });
   document.getElementById('sort1').value = state.sort1 || 'offer';
@@ -437,6 +454,26 @@ function resolveMember(c) {
   const aikawa = ALL_MEMBERS.find(m => (m.display_name||m.name||'').includes('相川'));
   return aikawa ? (aikawa.display_name||aikawa.name) : null;
 }
+function getCompanyAxisTags(c) {
+  const scored = [
+    ['年収アップ', c.score_salary],
+    ['裁量権', c.score_autonomy],
+    ['技術力・スキルアップ', c.score_tech],
+    ['ワークライフバランス', c.score_wlb],
+    ['社風・人間関係', c.score_culture],
+    ['安定性', c.score_brand],
+    ['事業内容への共感', c.score_social],
+  ].filter(([,v]) => v !== null && v !== undefined);
+
+  let tags = scored.filter(([,v]) => v >= 7).map(([label]) => label);
+  if (tags.length === 0 && scored.length > 0) {
+    scored.sort((a,b) => b[1] - a[1]);
+    tags = [scored[0][0]];
+  }
+  tags.push('事業成長性', 'マネジメント経験');
+  return tags;
+}
+
 function resolveMemberId(c) {
   if (c.member_id) return c.member_id;
   const aikawa = ALL_MEMBERS.find(m => (m.display_name||m.name||'').includes('相川'));
@@ -456,6 +493,7 @@ function render() {
   const role = document.getElementById('role').value;
   const areaFilter = document.getElementById('area_filter').value;
   const memberFilter = document.getElementById('member_filter').value;
+  const axisFilter = document.getElementById('axis_filter').value;
   const minNaitei = +document.getElementById('min_naitei').value || 0;
   const minOffer = +document.getElementById('min_offer').value || 0;
   const minSalary = +document.getElementById('min_salary').value;
@@ -463,6 +501,7 @@ function render() {
   const minTech = +document.getElementById('min_tech').value;
   const minSocial = +document.getElementById('min_social').value;
   const minBrand = +document.getElementById('min_brand').value;
+  const minCulture = +document.getElementById('min_culture').value;
   const showStopped = activeTags.has('stopped');
 
   let res = DATA.filter(c => {
@@ -476,6 +515,7 @@ function render() {
     }
     if (areaFilter && !(c.area||'').split(/,\s*/).includes(areaFilter)) return false;
     if (memberFilter && resolveMemberId(c) !== memberFilter) return false;
+    if (axisFilter && !getCompanyAxisTags(c).includes(axisFilter)) return false;
     if (minNaitei && (c.offer_rate === null || c.offer_rate === undefined || c.offer_rate * 100 < minNaitei)) return false;
     if (minOffer && (c.acceptance_rate === null || c.acceptance_rate === undefined || c.acceptance_rate < minOffer)) return false;
     if (minSalary && (c.score_salary === null || c.score_salary < minSalary)) return false;
@@ -483,6 +523,7 @@ function render() {
     if (minTech && (c.score_tech === null || c.score_tech < minTech)) return false;
     if (minSocial && (c.score_social === null || c.score_social < minSocial)) return false;
     if (minBrand && (c.score_brand === null || c.score_brand < minBrand)) return false;
+    if (minCulture && (c.score_culture === null || c.score_culture < minCulture)) return false;
     for (const k of activeTags) {
       if (k === 'stopped') continue;
       if (!c[k]) return false;
@@ -538,7 +579,7 @@ function render() {
         ${resolveMember(c) ? `<span class="pill" style="color:#6B7A99">👤 ${resolveMember(c)}</span>` : ''}
       </div>
       <div class="scores" onclick="toggleCard(this)">
-        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社会貢献',c.score_social]].map(([l,v]) =>
+        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社風',c.score_culture],['社会貢献',c.score_social]].map(([l,v]) =>
           `<div class="score-item"><span class="score-label">${l}</span>${scoreBar(v)}</div>`
         ).join('')}
       </div>
@@ -546,6 +587,7 @@ function render() {
         ${bools.length ? `<div style="margin-bottom:6px">${bools.map(b=>`<span class="bool-pill">${b}</span>`).join('')}</div>` : ''}
         ${c.roles ? `<div class="roles-text">職種: ${c.roles}</div>` : ''}
         ${c.tech ? `<div class="tech-text">技術: ${c.tech}</div>` : ''}
+        <div class="tech-text">転職軸: ${getCompanyAxisTags(c).join('、')}</div>
         ${c.area ? `<div class="area-text">エリア: ${c.area}</div>` : ''}
       </div>
     </div>`;
