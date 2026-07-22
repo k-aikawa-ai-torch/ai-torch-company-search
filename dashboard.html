@@ -130,6 +130,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
     </div>
     <div class="form-grid">
       <div class="form-group"><label>売上目標（円）</label><input id="tf-revenue" type="number"></div>
+      <div class="form-group"><label>粗利目標（円）</label><input id="tf-gross-profit" type="number"></div>
       <div class="form-group"><label>面談目標（件）</label><input id="tf-interview" type="number"></div>
       <div class="form-group"><label>推薦目標（件）</label><input id="tf-recommend" type="number"></div>
       <div class="form-group"><label>推薦実績（件・手入力）</label><input id="tf-recommend-actual" type="number"></div>
@@ -301,6 +302,13 @@ function calcActuals(pipelineItems, candidateItems, month) {
   const memberIds = [...new Set(candidateItems.map(function(c) { return c.member_id; }).filter(Boolean))];
   const revenueSum = memberIds.reduce(function(s, mid) { return s + (REVENUE_BY_MEMBER[mid] || 0); }, 0);
 
+  // 粗利：当月中に確定（内定承諾歓喜への到達 or 再計算）した候補者のgross_profit合計
+  const grossProfitSum = candidateItems.reduce(function(sum, c) {
+    if (c.gross_profit == null || !c.gross_profit_calculated_at) return sum;
+    const d = c.gross_profit_calculated_at.substring(0,10);
+    return (d >= start && d < end) ? sum + c.gross_profit : sum;
+  }, 0);
+
   // 面談数：当月登録候補者数
   const interviews = monthCandidates.length;
 
@@ -341,7 +349,7 @@ function calcActuals(pipelineItems, candidateItems, month) {
     activeByPhase[ph] = (activeByPhase[ph] || 0) + 1;
   });
 
-  return { revenueSum, interviews, selections, offers, accepts, activeByPhase };
+  return { revenueSum, grossProfitSum, interviews, selections, offers, accepts, activeByPhase };
 }
 
 function getTarget(memberId, month) {
@@ -396,14 +404,15 @@ function render() {
     let html = '';
 
     if (!target) {
-      html += '<div class="no-target">📋 ' + currentMonth + ' の目標が未設定です <button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\',null)">目標を設定する</button></div>';
+      html += '<div class="no-target">📋 ' + currentMonth + ' の目標が未設定です <button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\')">目標を設定する</button></div>';
     } else {
-      html += '<div style="text-align:right;margin-bottom:8px"><button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\',' + JSON.stringify(target).replace(/'/g,"\\'") + ')">✏️ 目標を編集</button></div>';
+      html += '<div style="text-align:right;margin-bottom:8px"><button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\')">✏️ 目標を編集</button></div>';
     }
 
     html += '<div class="section-title">売上</div>';
     html += '<div class="kpi-grid">';
     html += renderKpiCard('売上見込み', actuals.revenueSum, target ? target.revenue_target : null, '円', true);
+    html += renderKpiCard('粗利', actuals.grossProfitSum, target ? target.gross_profit_target : null, '円', true);
     html += '</div>';
 
     html += '<div class="section-title">KPI（' + currentMonth + '）</div>';
@@ -431,7 +440,7 @@ function render() {
   } else {
     // 全員比較ビュー
     let html = '<div class="section-title">メンバー別 売上・KPI比較（' + currentMonth + '）</div>';
-    html += '<table class="compare-table"><thead><tr><th>担当者</th><th>売上見込み</th><th>面談</th><th>推薦</th><th>選考</th><th>内定</th><th>承諾</th></tr></thead><tbody>';
+    html += '<table class="compare-table"><thead><tr><th>担当者</th><th>売上見込み</th><th>粗利</th><th>面談</th><th>推薦</th><th>選考</th><th>内定</th><th>承諾</th></tr></thead><tbody>';
 
     MEMBERS.forEach(member => {
       const memberName = MEMBER_NAMES[member.name];
@@ -455,6 +464,7 @@ function render() {
       html += '<tr>' +
         '<td><strong>' + member.display_name + '</strong></td>' +
         cell(actuals.revenueSum, target ? target.revenue_target : null, true) +
+        cell(actuals.grossProfitSum, target ? target.gross_profit_target : null, true) +
         cell(actuals.interviews, target ? target.interview_target : null, false) +
         cell((target && target.recommend_actual) || 0, target ? target.recommend_target : null, false) +
         cell(actuals.selections, target ? target.selection_target : null, false) +
@@ -484,12 +494,14 @@ function render() {
 }
 
 // 目標編集モーダル
-function openTargetModal(memberId, month, target) {
+function openTargetModal(memberId, month) {
   editingTargetMemberId = memberId;
   editingTargetMonth = month;
+  const target = TARGETS.find(t => t.member_id === memberId && t.year_month === month) || null;
   const memberName = MEMBERS.find(m => m.id === memberId)?.display_name || '';
   document.getElementById('target-modal-title').textContent = memberName + ' ' + month + ' の目標';
   document.getElementById('tf-revenue').value = target ? target.revenue_target || '' : '';
+  document.getElementById('tf-gross-profit').value = target ? target.gross_profit_target || '' : '';
   document.getElementById('tf-interview').value = target ? target.interview_target || '' : '';
   document.getElementById('tf-recommend').value = target ? target.recommend_target || '' : '';
   document.getElementById('tf-recommend-actual').value = target ? target.recommend_actual || '' : '';
@@ -505,6 +517,7 @@ async function saveTarget() {
     member_id: editingTargetMemberId,
     year_month: editingTargetMonth,
     revenue_target: document.getElementById('tf-revenue').value ? parseInt(document.getElementById('tf-revenue').value) : null,
+    gross_profit_target: document.getElementById('tf-gross-profit').value ? parseInt(document.getElementById('tf-gross-profit').value) : null,
     interview_target: document.getElementById('tf-interview').value ? parseInt(document.getElementById('tf-interview').value) : null,
     recommend_target: document.getElementById('tf-recommend').value ? parseInt(document.getElementById('tf-recommend').value) : null,
     recommend_actual: document.getElementById('tf-recommend-actual').value ? parseInt(document.getElementById('tf-recommend-actual').value) : null,
