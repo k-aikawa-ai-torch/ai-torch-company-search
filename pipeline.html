@@ -142,12 +142,13 @@ tr:hover td{background:#fafaf8;cursor:pointer}
             <th>候補者</th>
             <th>求人名</th>
             <th>フェーズ</th>
+            <th>ステータス</th>
             <th>NextAction日</th>
             <th>メモ</th>
             <th>登録日</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="7" class="loading">データを読み込み中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="8" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -210,7 +211,7 @@ async function loadData() {
     .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast)')
     .order('created_at', { ascending: false });
   if (error) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading">読み込み失敗</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">読み込み失敗</td></tr>';
     return;
   }
   DATA = data;
@@ -328,7 +329,7 @@ function render() {
   });
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="empty">該当する案件がありません</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">該当する案件がありません</td></tr>';
     return;
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
@@ -339,6 +340,7 @@ function render() {
       <td><strong>${p.candidates?.name||'-'}</strong></td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${job}</td>
       <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>
+      <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${p.status||'-'}</td>
       <td style="white-space:nowrap">${dateLabel(p.next_action_day)}</td>
       <td class="memo-cell" title="${memo}">${memo||'-'}</td>
       <td style="color:#aaa">${fmtDate(p.created_at)}</td>
