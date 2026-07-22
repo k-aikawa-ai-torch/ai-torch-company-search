@@ -381,8 +381,8 @@ const MOTIVATION_LIST = ['高（すぐ動く）','中（いいところがあれ
 function jobTypeArray(c) {
   return (c.job_type || '').split(/[,、]/).map(s => s.trim()).filter(Boolean);
 }
-const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾'];
-const PIPELINE_STATUS_LIST = ['進行中','終了_入社待ち','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
+const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const PIPELINE_STATUS_LIST = ['進行中','終了_辞退','終了_不合格','終了_その他'];
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;

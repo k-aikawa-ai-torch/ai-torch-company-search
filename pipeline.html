@@ -170,8 +170,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
-const SELECTION_PHASES = ['書類選考','カジュアル面談','一次面接','二次〜面接','最終面接','内定KITAAA','内定承諾歓喜'];
+const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const SELECTION_PHASES = ['書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾'];
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
 
 let DATA = [];
@@ -278,9 +278,9 @@ function getPhaseClass(p) {
   if (!p) return 'ph-other';
   if (['返信来た！','初回面談DONE'].includes(p)) return 'ph-return';
   if (['求人提案なう','推薦するやでぃ','応募承諾'].includes(p)) return 'ph-propose';
-  if (['書類選考','カジュアル面談','一次面接','二次〜面接','最終面接'].includes(p)) return 'ph-selection';
-  if (['内定KITAAA','内定承諾歓喜'].includes(p)) return 'ph-offer';
-  if (['入社後フォローしようね'].includes(p)) return 'ph-joined';
+  if (['書類選考','カジュアル面談','一次面接','二次～面接','最終面接'].includes(p)) return 'ph-selection';
+  if (['内定'].includes(p)) return 'ph-offer';
+  if (['内定承諾','入社待ち','入社済み'].includes(p)) return 'ph-joined';
   return 'ph-other';
 }
 
