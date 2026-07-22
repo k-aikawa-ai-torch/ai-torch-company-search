@@ -382,7 +382,7 @@ function jobTypeArray(c) {
   return (c.job_type || '').split(/[,、]/).map(s => s.trim()).filter(Boolean);
 }
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
-const PIPELINE_STATUS_LIST = ['進行中','終了_辞退','終了_不合格','終了_その他'];
+const PIPELINE_STATUS_LIST = ['進行中','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;
@@ -1095,7 +1095,7 @@ function showPipelineModal(p) {
     '<div class="form-grid">' +
     '<div class="form-group full"><label>求人名 *</label><input id="pf-job-name" value="' + (p ? (p.job_name||'').replace(/\n/g,' ').replace(/"/g,'&quot;') : '') + '" placeholder="例：株式会社〇〇 エンジニア"></div>' +
     '<div class="form-group full"><label>求人URL</label><input id="pf-job-url" value="' + (p ? p.job_url||'' : '') + '" placeholder="https://..."></div>' +
-    '<div class="form-group"><label>フェーズ</label><select id="pf-phase"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
+    '<div class="form-group"><label>フェーズ</label><select id="pf-phase" onchange="autoSetJoinedStatus()"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="pf-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
     '<div class="form-group"><label>NextAction日</label><input id="pf-next-action-day" type="date" value="' + (p ? p.next_action_day||'' : '') + '"></div>' +
     '<div class="form-group"><label>推薦日</label><input id="pf-recommended-at" type="date" value="' + (p ? p.recommended_at||'' : '') + '"></div>' +
@@ -1110,6 +1110,13 @@ function showPipelineModal(p) {
   document.getElementById('pipeline-modal').classList.add('open');
 }
 
+function autoSetJoinedStatus() {
+  const phase = document.getElementById('pf-phase').value;
+  if (phase === '入社済み') {
+    document.getElementById('pf-status').value = '終了_入社済み';
+  }
+}
+
 async function savePipeline() {
   var jobName = document.getElementById('pf-job-name').value.trim();
   if (!jobName) { alert('求人名を入力してください'); return; }
@@ -1117,7 +1124,7 @@ async function savePipeline() {
     job_name: jobName,
     job_url: document.getElementById('pf-job-url').value || null,
     phase: document.getElementById('pf-phase').value || null,
-    status: document.getElementById('pf-status').value || null,
+    status: document.getElementById('pf-phase').value === '入社済み' ? '終了_入社済み' : (document.getElementById('pf-status').value || null),
     next_action_day: document.getElementById('pf-next-action-day').value || null,
     recommended_at: document.getElementById('pf-recommended-at').value || null,
     memo: document.getElementById('pf-memo').value || null,
