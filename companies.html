@@ -84,6 +84,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-lab-info" id="sb-lab-info"></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
     <a class="sb-item active" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
@@ -228,6 +229,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let DATA = [];
 let ALL_MEMBERS = [];
+let CURRENT_USER_EMAIL = null;
 let activeTags = new Set();
 let activeTechTags = new Set();
 let sort1Dir = -1;
@@ -241,6 +243,7 @@ async function login() {
     document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います';
     return;
   }
+  CURRENT_USER_EMAIL = email;
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.title = 'AI torch 企業検索';
@@ -252,9 +255,20 @@ async function logout() {
   location.reload();
 }
 
+function renderLabInfo() {
+  var el = document.getElementById('sb-lab-info');
+  if (!el) return;
+  var me = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (!me || !me.lab_number) { el.innerHTML = ''; return; }
+  var nicknames = me.nickname ? me.nickname.split(',') : [];
+  var picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
+  el.innerHTML = '<span class="no">Lab Member No.' + String(me.lab_number).padStart(3,'0') + '</span>' + picked;
+}
+
 // セッション維持
 sb.auth.getSession().then(({ data: { session } }) => {
   if (session) {
+    CURRENT_USER_EMAIL = session.user.email;
     document.getElementById('lock-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     document.title = 'AI torch 企業検索';
@@ -275,6 +289,7 @@ async function loadData() {
   ALL_MEMBERS = membersRes.data || [];
   document.getElementById('header-count').textContent = DATA.length + '社';
   initSelects();
+  renderLabInfo();
   await loadPresets();
   render();
 }

@@ -84,6 +84,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-lab-info" id="sb-lab-info"></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
@@ -179,6 +180,8 @@ let DATA = [];
 let currentMember = '全員';
 let selectedPhase = '';
 let selectionMode = true;
+let ALL_MEMBERS = [];
+let CURRENT_USER_EMAIL = null;
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;
@@ -188,6 +191,7 @@ async function doLogin() {
     document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います';
     return;
   }
+  CURRENT_USER_EMAIL = email;
   showApp();
 }
 
@@ -202,21 +206,36 @@ function showApp() {
   loadData();
 }
 
+function renderLabInfo() {
+  var el = document.getElementById('sb-lab-info');
+  if (!el) return;
+  var me = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (!me || !me.lab_number) { el.innerHTML = ''; return; }
+  var nicknames = me.nickname ? me.nickname.split(',') : [];
+  var picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
+  el.innerHTML = '<span class="no">Lab Member No.' + String(me.lab_number).padStart(3,'0') + '</span>' + picked;
+}
+
 sb.auth.getSession().then(({ data: { session } }) => {
-  if (session) showApp();
+  if (session) { CURRENT_USER_EMAIL = session.user.email; showApp(); }
 });
 
 async function loadData() {
-  const { data, error } = await sb.from('pipeline')
-    .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast)')
-    .order('created_at', { ascending: false });
+  const [{ data, error }, membersRes] = await Promise.all([
+    sb.from('pipeline')
+      .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast)')
+      .order('created_at', { ascending: false }),
+    sb.from('members').select('*'),
+  ]);
   if (error) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">読み込み失敗</td></tr>';
     return;
   }
   DATA = data;
+  ALL_MEMBERS = membersRes.data || [];
   document.getElementById('header-count').textContent = DATA.length + '件';
   renderFunnel();
+  renderLabInfo();
   render();
 }
 

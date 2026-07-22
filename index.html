@@ -77,6 +77,7 @@ h1 span{color:#0D40D9}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-lab-info" id="sb-lab-info"></div>
     <a class="sb-item active" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
@@ -145,6 +146,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let ALL_MEMBERS = [];
 
 async function login() {
   const email = document.getElementById('email-input').value;
@@ -193,6 +195,21 @@ function showApp(email) {
     `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
 
   loadCounts();
+  loadLabInfo(email);
+}
+
+async function loadLabInfo(email) {
+  const el = document.getElementById('sb-lab-info');
+  if (!el) return;
+  if (!ALL_MEMBERS.length) {
+    const { data } = await sb.from('members').select('*');
+    ALL_MEMBERS = data || [];
+  }
+  const me = ALL_MEMBERS.find(function(m) { return m.email === email; });
+  if (!me || !me.lab_number) { el.innerHTML = ''; return; }
+  const nicknames = me.nickname ? me.nickname.split(',') : [];
+  const picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
+  el.innerHTML = '<span class="no">Lab Member No.' + String(me.lab_number).padStart(3,'0') + '</span>' + picked;
 }
 
 async function loadCounts() {
