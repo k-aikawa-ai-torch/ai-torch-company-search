@@ -77,7 +77,6 @@ h1 span{color:#0D40D9}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
-    <div class="sb-lab-info" id="sb-lab-info"></div>
     <a class="sb-item active" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
@@ -164,13 +163,26 @@ async function logout() {
   location.reload();
 }
 
-function showApp(email) {
+async function showApp(email) {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-label').textContent = email;
 
   const name = (email.split('@')[0] || '').toLowerCase();
-  const label = name.includes('aikawa') ? '相川' : name.includes('nagai') ? '永井' : name.includes('aizawa') ? '會澤' : email;
+  const baseLabel = name.includes('aikawa') ? '相川' : name.includes('nagai') ? '永井' : name.includes('aizawa') ? '會澤' : email;
+
+  if (!ALL_MEMBERS.length) {
+    const { data } = await sb.from('members').select('*');
+    ALL_MEMBERS = data || [];
+  }
+  const me = ALL_MEMBERS.find(function(m) { return m.email === email; });
+  let label = baseLabel;
+  if (me && me.lab_number) {
+    const nicknames = me.nickname ? me.nickname.split(',') : [];
+    const picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
+    label = baseLabel + '（' + picked + '）';
+  }
+
   const GREETINGS = [
     label => `ククク……この世界線に、<span>${label}</span>の帰還を確認した。`,
     label => `リーディング・シュタイナーが疼く。おかえりだ、<span>${label}</span>。`,
@@ -195,21 +207,6 @@ function showApp(email) {
     `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
 
   loadCounts();
-  loadLabInfo(email);
-}
-
-async function loadLabInfo(email) {
-  const el = document.getElementById('sb-lab-info');
-  if (!el) return;
-  if (!ALL_MEMBERS.length) {
-    const { data } = await sb.from('members').select('*');
-    ALL_MEMBERS = data || [];
-  }
-  const me = ALL_MEMBERS.find(function(m) { return m.email === email; });
-  if (!me || !me.lab_number) { el.innerHTML = ''; return; }
-  const nicknames = me.nickname ? me.nickname.split(',') : [];
-  const picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
-  el.innerHTML = '<span class="no">Lab Member No.' + String(me.lab_number).padStart(3,'0') + '</span>' + picked;
 }
 
 async function loadCounts() {

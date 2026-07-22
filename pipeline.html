@@ -84,7 +84,6 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
-    <div class="sb-lab-info" id="sb-lab-info"></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
@@ -113,6 +112,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <option value="">全ステータス</option>
       </select>
       <button id="selection-btn" class="filter-btn on" onclick="toggleSelectionMode()">選考中のみ</button>
+      <span id="pf-lab-info" style="font-size:11px;color:#9aa3b8;margin-left:8px"></span>
     </div>
     <div class="top-bar">
       <span class="count" id="count"></span>
@@ -207,13 +207,13 @@ function showApp() {
 }
 
 function renderLabInfo() {
-  var el = document.getElementById('sb-lab-info');
+  var el = document.getElementById('pf-lab-info');
   if (!el) return;
   var me = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
-  if (!me || !me.lab_number) { el.innerHTML = ''; return; }
+  if (!me || !me.lab_number) { el.textContent = ''; return; }
   var nicknames = me.nickname ? me.nickname.split(',') : [];
   var picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
-  el.innerHTML = '<span class="no">Lab Member No.' + String(me.lab_number).padStart(3,'0') + '</span>' + picked;
+  el.textContent = 'Lab Member No.' + String(me.lab_number).padStart(3,'0') + (picked ? '「' + picked + '」' : '');
 }
 
 sb.auth.getSession().then(({ data: { session } }) => {
