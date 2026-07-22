@@ -1140,7 +1140,8 @@ async function savePipeline() {
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   if (phaseChanged && savedPipelineId) {
-    await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase });
+    const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase });
+    if (historyError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + historyError.message); }
   }
   if (phaseChanged && payload.phase === '内定承諾歓喜') {
     const cand = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
