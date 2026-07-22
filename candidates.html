@@ -361,6 +361,7 @@ let FILE_FLAGS = new Set();
 let MEDIA_FEE_RATES = [];
 let TEMPLATES = [];
 let currentMember = '全員';
+let CURRENT_USER_EMAIL = null;
 let currentTab = 'active';
 let currentId = null;
 let currentPipelineId = null;
@@ -388,6 +389,7 @@ async function doLogin() {
   const password = document.getElementById('pw-input').value;
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) { document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います'; return; }
+  CURRENT_USER_EMAIL = email;
   showApp();
 }
 async function doLogout() { await sb.auth.signOut(); location.reload(); }
@@ -396,7 +398,7 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
   loadData();
 }
-sb.auth.getSession().then(({ data: { session } }) => { if (session) showApp(); });
+sb.auth.getSession().then(({ data: { session } }) => { if (session) { CURRENT_USER_EMAIL = session.user.email; showApp(); } });
 
 async function loadData() {
   const [{ data: members }, { data: candidates, error }, { data: templates }, { data: feeRates }] = await Promise.all([
@@ -609,6 +611,11 @@ function openAdd() {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.modal-tab')[1].classList.add('active');
   renderEditForm(null);
+  const me = MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (me) document.getElementById('f-member').value = me.id;
+  document.getElementById('f-phase').value = '返信来た！';
+  document.getElementById('f-status').value = '進行中';
+  document.getElementById('f-registered-at').value = today();
   document.getElementById('modal-detail').style.display = 'none';
   document.getElementById('modal-edit').style.display = 'block';
   document.getElementById('modal').classList.add('open');
