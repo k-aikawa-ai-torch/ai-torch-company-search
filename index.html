@@ -180,7 +180,7 @@ async function showApp(email) {
   if (me && me.lab_number) {
     const nicknames = me.nickname ? me.nickname.split(',') : [];
     const picked = nicknames.length ? nicknames[Math.floor(Math.random() * nicknames.length)] : '';
-    label = baseLabel + '（' + picked + '）';
+    if (picked) label = picked;
   }
 
   const GREETINGS = [
