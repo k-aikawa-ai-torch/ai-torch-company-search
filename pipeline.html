@@ -142,6 +142,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <tr>
             <th>担当</th>
             <th>候補者</th>
+            <th>企業名</th>
             <th>求人名</th>
             <th>フェーズ</th>
             <th>ステータス</th>
@@ -150,7 +151,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
             <th>登録日</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="8" class="loading">データを読み込み中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="9" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -224,12 +225,12 @@ sb.auth.getSession().then(({ data: { session } }) => {
 async function loadData() {
   const [{ data, error }, membersRes] = await Promise.all([
     sb.from('pipeline')
-      .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast)')
+      .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast), companies(name)')
       .order('created_at', { ascending: false }),
     sb.from('members').select('*'),
   ]);
   if (error) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">読み込み失敗</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="loading">読み込み失敗</td></tr>';
     return;
   }
   DATA = data;
@@ -349,7 +350,7 @@ function render() {
   });
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">該当する案件がありません</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="empty">該当する案件がありません</td></tr>';
     return;
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
@@ -358,6 +359,7 @@ function render() {
     return `<tr onclick="openModal('${p.id}')">
       <td style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
       <td><strong>${p.candidates?.name||'-'}</strong></td>
+      <td style="color:#6B7A99;font-size:12px">${p.companies?.name||'-'}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${job}</td>
       <td><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></td>
       <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${p.status||'-'}</td>
@@ -372,7 +374,7 @@ function openModal(id) {
   const p = DATA.find(d => d.id === id);
   if (!p) return;
   document.getElementById('modal-title').textContent = (p.job_name||'').replace(/\n/g,' ');
-  document.getElementById('modal-sub').textContent = (p.candidates?.name||'-') + ' ／ ' + (p.members?.display_name||'-');
+  document.getElementById('modal-sub').textContent = (p.candidates?.name||'-') + ' ／ ' + (p.companies?.name||'-') + ' ／ ' + (p.members?.display_name||'-');
   document.getElementById('modal-content').innerHTML = `
     <div class="detail-item"><div class="detail-label">フェーズ</div><div class="detail-value"><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></div></div>
     <div class="detail-item"><div class="detail-label">ステータス</div><div class="detail-value">${p.status||'-'}</div></div>
