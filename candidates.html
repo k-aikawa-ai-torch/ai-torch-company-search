@@ -602,7 +602,7 @@ async function openDetail(id) {
   document.getElementById('modal-title').textContent = c ? c.name : '候補者詳細';
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.modal-tab')[0].classList.add('active');
-  const { data: pipelines } = await sb.from('pipeline').select('*').eq('candidate_id', id).order('created_at', { ascending: false });
+  const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', id).order('created_at', { ascending: false });
   renderDetail(c, pipelines || []);
   document.getElementById('modal-edit').style.display = 'none';
   document.getElementById('modal-detail').style.display = 'block';
@@ -630,7 +630,7 @@ async function setModalTab(tab, el) {
   el.classList.add('active');
   const c = currentId ? DATA.find(d => d.id === currentId) : null;
   if (tab === 'detail') {
-    const { data: pipelines } = currentId ? await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false }) : { data: [] };
+    const { data: pipelines } = currentId ? await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', currentId).order('created_at', { ascending: false }) : { data: [] };
     renderDetail(c, pipelines || []);
     document.getElementById('modal-detail').style.display = 'block';
     document.getElementById('modal-edit').style.display = 'none';
@@ -654,7 +654,9 @@ function renderDetail(c, pipelines) {
     pipelines.forEach(function(p) {
       const jobName = (p.job_name || '').replace(/\n/g, ' ');
       const jobLink = p.job_url ? '<a href="' + p.job_url + '" target="_blank" style="color:#14213D">' + jobName + '</a>' : jobName;
+      const companyName = p.companies ? p.companies.name : '';
       pipelineRows += '<tr>' +
+        '<td style="color:#666;font-size:11px;white-space:nowrap">' + (companyName || '-') + '</td>' +
         '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
         '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
         '<td style="color:#666;font-size:11px">' + (p.status||'-') + '</td>' +
@@ -666,7 +668,7 @@ function renderDetail(c, pipelines) {
   }
 
   const pipelineTable = pipelines.length > 0
-    ? '<table class="pipeline-mini-table"><thead><tr><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    ? '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
     : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
 
   document.getElementById('modal-detail').innerHTML =
@@ -1183,7 +1185,7 @@ async function savePipeline() {
   setTimeout(async function() {
     closePipelineModal();
     if (currentId) {
-      var { data: pipelines } = await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false });
+      var { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', currentId).order('created_at', { ascending: false });
       var c = DATA.find(function(d) { return d.id === currentId; });
       renderDetail(c, pipelines || []);
     }
@@ -1196,7 +1198,7 @@ async function deletePipeline(id) {
   if (error) { alert('削除に失敗しました: ' + error.message); return; }
   closePipelineModal();
   if (currentId) {
-    var { data: pipelines } = await sb.from('pipeline').select('*').eq('candidate_id', currentId).order('created_at', { ascending: false });
+    var { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', currentId).order('created_at', { ascending: false });
     var c = DATA.find(function(d) { return d.id === currentId; });
     renderDetail(c, pipelines || []);
   }
@@ -1335,13 +1337,13 @@ async function loadFileList(candidateId) {
     var link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
-    link.textContent = f.name;
+    link.textContent = decodeFileName(f.name);
     item.appendChild(link);
 
     var delBtn = document.createElement('button');
     delBtn.className = 'file-del-btn';
     delBtn.textContent = '削除';
-    delBtn.addEventListener('click', function() { doDeleteFile(candidateId, f.name); });
+    delBtn.addEventListener('click', function() { doDeleteFile(candidateId, f.name, decodeFileName(f.name)); });
     item.appendChild(delBtn);
 
     listDiv.appendChild(item);
@@ -1353,7 +1355,8 @@ async function doUpload(files, candidateId) {
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
     if (msgDiv) msgDiv.textContent = f.name + ' をアップロード中…';
-    var res = await sb.storage.from('candidates-files').upload(candidateId + '/' + f.name, f, { upsert: true });
+    var safeName = encodeURIComponent(f.name);
+    var res = await sb.storage.from('candidates-files').upload(candidateId + '/' + safeName, f, { upsert: true });
     if (res.error) {
       alert(f.name + ' のアップロードに失敗しました: ' + res.error.message);
     }
@@ -1363,8 +1366,12 @@ async function doUpload(files, candidateId) {
   loadFileList(candidateId);
 }
 
-async function doDeleteFile(candidateId, fileName) {
-  if (!confirm(fileName + ' を削除してよいですか？')) return;
+function decodeFileName(name) {
+  try { return decodeURIComponent(name); } catch (e) { return name; }
+}
+
+async function doDeleteFile(candidateId, fileName, displayName) {
+  if (!confirm((displayName || fileName) + ' を削除してよいですか？')) return;
   var res = await sb.storage.from('candidates-files').remove([candidateId + '/' + fileName]);
   if (res.error) { alert('削除に失敗しました: ' + res.error.message); return; }
   loadFileList(candidateId);

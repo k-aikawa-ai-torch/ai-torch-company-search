@@ -103,6 +103,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
       <input type="text" id="q" placeholder="企業名・技術キーワード・職種で検索…" oninput="render()">
     </div>
     <div class="filters">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">属性:</span>
       <select id="industry" onchange="render()"></select>
       <select id="role" onchange="render()"></select>
       <select id="area_filter" onchange="render()"></select>
@@ -113,6 +114,34 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
         <option>ワークライフバランス</option><option>技術力・スキルアップ</option><option>安定性</option>
         <option>社風・人間関係</option><option>事業内容への共感</option><option>マネジメント経験</option>
       </select>
+      <select id="tier" onchange="render()">
+        <option value="">全Tier</option>
+        <option value="1">Tier 1</option>
+        <option value="2">Tier 2</option>
+        <option value="3">Tier 3</option>
+      </select>
+    </div>
+    <div class="tag-filters" id="tech-tag-filters" style="margin-bottom:6px">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">技術タグ:</span>
+    </div>
+    <div class="tag-filters">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">タグ:</span>
+      <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
+      <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
+      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
+      <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
+      <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
+      <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
+      <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
+    </div>
+    <div class="tag-filters">
+      <button class="filter-btn" type="button" id="adv-filter-toggle" onclick="toggleAdvFilters()">スコアで絞り込む ▾</button>
+      <button class="filter-btn" type="button" onclick="clearAllFilters()">全クリア</button>
+      <select id="preset-select" onchange="applyPreset()" class="filter-btn" style="padding:0 8px"><option value="">検索条件を選択…</option></select>
+      <button class="filter-btn" type="button" onclick="saveSearchPreset()">💾 保存</button>
+      <button class="filter-btn" type="button" onclick="deleteSearchPreset()" style="color:#b3261e">🗑️</button>
+    </div>
+    <div class="filters-advanced" id="filters-advanced">
       <div class="score-filter">
         <span>内定率≥</span>
         <input type="number" id="min_naitei" onchange="render()" placeholder="%" min="0" max="100" style="width:56px;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px">%
@@ -120,6 +149,12 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
         <input type="number" id="min_offer" onchange="render()" placeholder="-" style="width:56px;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px">
         <span>年収≥</span>
         <select id="min_salary" onchange="render()">
+          <option value="0">-</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+        <span>WLB≥</span>
+        <select id="min_wlb" onchange="render()">
           <option value="0">-</option>
           <option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -132,35 +167,6 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
         </select>
         <span>社会貢献≥</span>
         <select id="min_social" onchange="render()">
-          <option value="0">-</option>
-          <option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-        </select>
-      </div>
-    </div>
-    <div class="tag-filters" id="tech-tag-filters" style="margin-bottom:6px">
-      <span style="font-size:12px;color:#6B7A99;margin-right:2px">技術:</span>
-    </div>
-    <div class="tag-filters">
-      <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
-      <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
-      <span class="tag" data-key="megaben" onclick="toggleTag(this)">メガベン</span>
-      <button class="filter-btn" type="button" id="adv-filter-toggle" onclick="toggleAdvFilters()">詳細フィルタ ▾</button>
-      <button class="filter-btn" type="button" onclick="clearAllFilters()">全クリア</button>
-      <select id="preset-select" onchange="applyPreset()" class="filter-btn" style="padding:0 8px"><option value="">検索条件を選択…</option></select>
-      <button class="filter-btn" type="button" onclick="saveSearchPreset()">💾 保存</button>
-      <button class="filter-btn" type="button" onclick="deleteSearchPreset()" style="color:#b3261e">🗑️</button>
-    </div>
-    <div class="filters-advanced" id="filters-advanced">
-      <select id="tier" onchange="render()">
-        <option value="">全Tier</option>
-        <option value="1">Tier 1</option>
-        <option value="2">Tier 2</option>
-        <option value="3">Tier 3</option>
-      </select>
-      <div class="score-filter">
-        <span>WLB≥</span>
-        <select id="min_wlb" onchange="render()">
           <option value="0">-</option>
           <option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -178,10 +184,6 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
         </select>
       </div>
-      <span class="tag" data-key="ai" onclick="toggleTag(this)">AI</span>
-      <span class="tag" data-key="feeup" onclick="toggleTag(this)">FeeUP</span>
-      <span class="tag" data-key="senior" onclick="toggleTag(this)">50代可</span>
-      <span class="tag" data-key="stopped" onclick="toggleTag(this)">採用停止含む</span>
     </div>
     <div class="top-bar">
       <span class="count" id="count"></span>
@@ -196,6 +198,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="social">社会貢献</option>
           <option value="brand">ネームバリュー</option>
           <option value="tier">Tier</option>
+          <option value="industry">業界</option>
           <option value="name">企業名</option>
         </select>
         <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
@@ -210,6 +213,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
           <option value="social">社会貢献</option>
           <option value="brand">ネームバリュー</option>
           <option value="tier">Tier</option>
+          <option value="industry">業界</option>
         </select>
         <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
       </div>
@@ -540,6 +544,7 @@ function render() {
 
   function compareCompBy(key, a, b) {
     if (key === 'name') return (a.name||'').localeCompare(b.name||'','ja');
+    if (key === 'industry') return (a.industry||'').localeCompare(b.industry||'','ja');
     if (key === 'tier') return (a.tier||99) - (b.tier||99);
     if (SCORE_MAP[key]) return (a[SCORE_MAP[key]]||0) - (b[SCORE_MAP[key]]||0);
     return 0;
