@@ -36,7 +36,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .action-day-group{margin-bottom:14px}
 .action-day-header{font-size:13px;font-weight:600;padding:6px 0;color:#14213D;border-bottom:2px solid #DEE7F7;margin-bottom:6px;position:sticky;top:0;background:#fff}
 .action-day-header.is-today{color:#0D40D9}
-.action-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f5f5f5;font-size:12.5px}
+.action-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f5f5f5;font-size:12.5px;cursor:pointer}
 .action-row:hover{background:#fafaf8}
 .action-row .a-candidate{font-weight:500;min-width:90px;cursor:pointer}
 .action-row .a-company{color:#6B7A99;min-width:120px}
@@ -173,6 +173,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       </div>
     </div>
     <div class="table-wrap">
+      <datalist id="company-options"></datalist>
       <table>
         <thead>
           <tr>
@@ -302,6 +303,7 @@ async function loadData() {
   ALL_COMPANIES = companiesRes.data || [];
   PHASE_HISTORY = phaseHistory || [];
   PIPELINE_VIEWS = viewsRes.data || [];
+  if (viewsRes.error) console.error('pipeline_views読み込みエラー:', viewsRes.error);
   document.getElementById('header-count').textContent = DATA.length + '件';
   ME = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
   if (ME) {
@@ -315,6 +317,7 @@ async function loadData() {
   }
   renderViewSelect();
   renderStatusPhaseFilters();
+  renderCompanyDatalist();
   if (ME && ME.default_pipeline_view_id) {
     const v = PIPELINE_VIEWS.find(function(x) { return x.id === ME.default_pipeline_view_id; });
     if (v) { applyPipelineView(v.filters); }
@@ -476,14 +479,14 @@ function renderMonthSummary() {
   el.innerHTML = [
     ['当月確定売上', fmtSalary(confirmedRevenue)],
     ['当月確定粗利', fmtSalary(confirmedProfit)],
-    ['当月売上見込み', fmtSalary(forecastRevenue) + '（決定ヨミ反映）'],
+    ['当月売上見込み', fmtSalary(forecastRevenue)],
     ['当月パイプ数', monthPipelines.length + '件'],
     ['当月パイプ人数', monthUniqueCandidates.size + '名'],
   ].map(([label,value]) => '<div class="summary-card"><div class="summary-label">' + label + '</div><div class="summary-value">' + value + '</div></div>').join('');
 }
 
 // ============ 日別アクションリスト ============
-function renderActionList() {
+function renderActionList(skipAutoScroll) {
   const el = document.getElementById('action-list');
   if (!el) return;
   const scoped = getFilteredBase().filter(p => p.next_action_day);
@@ -502,7 +505,7 @@ function renderActionList() {
     dates.push(d.toISOString().substring(0,10));
   }
 
-  let html = '<div class="action-list-more" onclick="expandActionList(-7)">▲ もっと前を見る</div>';
+  let html = '';
   dates.forEach(d => {
     const items = byDate[d] || [];
     const isToday = d === todayStr;
@@ -513,8 +516,8 @@ function renderActionList() {
       html += '<div style="font-size:12px;color:#ccc;padding:6px 0">予定なし</div>';
     } else {
       items.forEach(p => {
-        html += '<div class="action-row">' +
-          '<span class="a-candidate" onclick="openModal(\'' + p.id + '\')">' + (p.candidates?.name||'-') + '</span>' +
+        html += '<div class="action-row" onclick="openModalUnlessInput(event,\'' + p.id + '\')">' +
+          '<span class="a-candidate">' + (p.candidates?.name||'-') + '</span>' +
           '<span class="a-company">' + (p.companies?.name||'-') + '</span>' +
           '<span class="a-phase"><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></span>' +
           '<span class="a-note"><input type="text" value="' + (p.next_action_note||'').replace(/"/g,'&quot;') + '" placeholder="やること" onchange="inlineSave(\'' + p.id + '\',\'next_action_note\',this.value)"></span>' +
@@ -523,19 +526,45 @@ function renderActionList() {
     }
     html += '</div>';
   });
-  html += '<div class="action-list-more" onclick="expandActionList(7)">▼ もっと先を見る</div>';
   el.innerHTML = html;
+  initActionListScroll();
 
-  // 初期表示時、今日の位置までスクロール
-  requestAnimationFrame(() => {
-    const anchor = document.getElementById('ad-' + todayStr);
-    if (anchor) anchor.scrollIntoView({ block: 'start' });
-  });
+  if (!skipAutoScroll) {
+    requestAnimationFrame(() => {
+      const anchor = document.getElementById('ad-' + todayStr);
+      if (anchor) anchor.scrollIntoView({ block: 'start' });
+    });
+  }
 }
 
-function expandActionList(days) {
-  if (days < 0) actionListRange.from -= 7; else actionListRange.to += 7;
-  renderActionList();
+function openModalUnlessInput(evt, id) {
+  if (evt.target.tagName === 'INPUT') return;
+  openModal(id);
+}
+
+function initActionListScroll() {
+  const wrap = document.getElementById('action-list');
+  if (!wrap || wrap._scrollBound) return;
+  wrap._scrollBound = true;
+  wrap.addEventListener('scroll', function() {
+    if (wrap._expanding) return;
+    if (wrap.scrollTop < 60) {
+      wrap._expanding = true;
+      const prevHeight = wrap.scrollHeight;
+      const prevScrollTop = wrap.scrollTop;
+      actionListRange.from -= 7;
+      renderActionList(true);
+      requestAnimationFrame(() => {
+        wrap.scrollTop = prevScrollTop + (wrap.scrollHeight - prevHeight);
+        wrap._expanding = false;
+      });
+    } else if (wrap.scrollTop + wrap.clientHeight > wrap.scrollHeight - 60) {
+      wrap._expanding = true;
+      actionListRange.to += 7;
+      renderActionList(true);
+      wrap._expanding = false;
+    }
+  });
 }
 
 // ============ ビュー保存 ============
@@ -588,10 +617,11 @@ async function saveCurrentView() {
     const { error } = await sb.from('pipeline_views').insert({ name, filters, created_by: ME ? ME.id : null });
     if (error) { alert('保存に失敗しました: ' + error.message); return; }
   }
-  const { data } = await sb.from('pipeline_views').select('*,members(display_name,name)').order('name');
+  const { data, error: refetchError } = await sb.from('pipeline_views').select('*,members(display_name,name)').order('name');
+  if (refetchError) { alert('一覧の再取得に失敗しました: ' + refetchError.message); return; }
   PIPELINE_VIEWS = data || [];
   renderViewSelect();
-  alert('保存しました');
+  alert('保存しました（' + PIPELINE_VIEWS.length + '件のビューがあります）');
 }
 
 async function setAsDefaultView() {
@@ -636,9 +666,6 @@ function render() {
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
     const memo = (p.memo||'').replace(/\n/g,' ');
-    const companyOpts = '<option value="">-</option>' + ALL_COMPANIES.map(c =>
-      '<option value="' + c.id + '"' + (c.id === p.company_id ? ' selected' : '') + '>' + c.name.replace(/"/g,'&quot;') + '</option>'
-    ).join('');
     const phaseOpts = '<option value="">未設定</option>' + PIPELINE_PHASE_LIST.map(ph =>
       '<option' + (ph === p.phase ? ' selected' : '') + '>' + ph + '</option>'
     ).join('');
@@ -648,7 +675,7 @@ function render() {
     return `<tr data-id="${p.id}">
       <td style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
       <td><strong>${p.candidates?.name||'-'}</strong></td>
-      <td><select onchange="inlineSave('${p.id}','company_id',this.value||null)">${companyOpts}</select></td>
+      <td><input type="text" list="company-options" value="${(p.companies?.name||'').replace(/"/g,'&quot;')}" onchange="inlineSaveCompany('${p.id}',this.value)" placeholder="企業名で検索/新規入力"></td>
       <td><input type="text" value="${(p.job_name||'').replace(/"/g,'&quot;').replace(/\n/g,' ')}" onchange="inlineSave('${p.id}','job_name',this.value)"></td>
       <td><select onchange="inlinePhaseSave('${p.id}',this.value)">${phaseOpts}</select></td>
       <td><select onchange="inlineSave('${p.id}','status',this.value||null)">${statusOpts}</select></td>
@@ -659,6 +686,35 @@ function render() {
       <td><button class="icon-btn" onclick="openModal('${p.id}')" title="詳細">🔍</button></td>
     </tr>`;
   }).join('');
+}
+
+function renderCompanyDatalist() {
+  const dl = document.getElementById('company-options');
+  if (!dl) return;
+  dl.innerHTML = ALL_COMPANIES.map(c => '<option value="' + c.name.replace(/"/g,'&quot;') + '">').join('');
+}
+
+async function inlineSaveCompany(id, name) {
+  name = (name || '').trim();
+  const p = DATA.find(x => x.id === id);
+  if (!p) return;
+  if (!name) {
+    await inlineSave(id, 'company_id', null);
+    return;
+  }
+  let match = ALL_COMPANIES.find(c => c.name === name);
+  if (!match) {
+    if (!confirm('「' + name + '」は企業リストに存在しません。新規企業として登録しますか？')) {
+      render();
+      return;
+    }
+    const { data, error } = await sb.from('companies').insert({ name }).select().single();
+    if (error) { alert('企業の新規登録に失敗しました: ' + error.message); render(); return; }
+    match = data;
+    ALL_COMPANIES.push(match);
+    renderCompanyDatalist();
+  }
+  await inlineSave(id, 'company_id', match.id);
 }
 
 async function inlineSave(id, field, value) {
