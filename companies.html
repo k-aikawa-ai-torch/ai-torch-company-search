@@ -104,8 +104,6 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
     </div>
     <div class="filters">
       <span style="font-size:12px;color:#6B7A99;margin-right:2px">属性:</span>
-      <select id="industry" onchange="render()"></select>
-      <select id="role" onchange="render()"></select>
       <select id="area_filter" onchange="render()"></select>
       <select id="member_filter" onchange="render()"></select>
       <select id="axis_filter" onchange="render()">
@@ -120,6 +118,12 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
         <option value="2">Tier 2</option>
         <option value="3">Tier 3</option>
       </select>
+    </div>
+    <div class="tag-filters" id="industry-tag-filters" style="margin-bottom:6px">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">業界:</span>
+    </div>
+    <div class="tag-filters" id="role-tag-filters" style="margin-bottom:6px">
+      <span style="font-size:12px;color:#6B7A99;margin-right:2px">職種:</span>
     </div>
     <div class="tag-filters" id="tech-tag-filters" style="margin-bottom:6px">
       <span style="font-size:12px;color:#6B7A99;margin-right:2px">技術タグ:</span>
@@ -235,6 +239,8 @@ let DATA = [];
 let ALL_MEMBERS = [];
 let activeTags = new Set();
 let activeTechTags = new Set();
+let activeIndustryTags = new Set();
+let activeRoleTags = new Set();
 let sort1Dir = -1;
 let sort2Dir = -1;
 
@@ -289,27 +295,36 @@ function initSelects() {
   const allRoles = [...new Set(DATA.flatMap(c => (c.roles||'').split(/,\s*/)))].filter(Boolean).sort();
   const allAreas = [...new Set(DATA.flatMap(c => (c.area||'').split(/,\s*/)))].filter(Boolean).sort();
   const allTech = [...new Set(DATA.flatMap(c => (c.tech||'').split(/,\s*/)))].filter(Boolean).sort();
-  const indSel = document.getElementById('industry');
-  const roleSel = document.getElementById('role');
   const areaSel = document.getElementById('area_filter');
   const memberSel = document.getElementById('member_filter');
-  indSel.innerHTML = '<option value="">全業界</option>';
-  roleSel.innerHTML = '<option value="">全職種</option>';
   areaSel.innerHTML = '<option value="">全エリア</option>';
   memberSel.innerHTML = '<option value="">全担当者</option>';
-  allIndustries.forEach(i => { const o = document.createElement('option'); o.value=i; o.textContent=i; indSel.appendChild(o); });
-  allRoles.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; roleSel.appendChild(o); });
   allAreas.forEach(a => { const o = document.createElement('option'); o.value=a; o.textContent=a; areaSel.appendChild(o); });
   ALL_MEMBERS.forEach(m => { const o = document.createElement('option'); o.value=m.id; o.textContent=m.display_name||m.name; memberSel.appendChild(o); });
 
+  const indWrap = document.getElementById('industry-tag-filters');
+  indWrap.innerHTML = '<span style="font-size:12px;color:#6B7A99;margin-right:2px">業界:</span>' +
+    allIndustries.map(i => '<span class="tag" data-industry="' + i + '" onclick="toggleIndustryTag(this)">' + i + '</span>').join('');
+
+  const roleWrap = document.getElementById('role-tag-filters');
+  roleWrap.innerHTML = '<span style="font-size:12px;color:#6B7A99;margin-right:2px">職種:</span>' +
+    allRoles.map(r => '<span class="tag" data-role="' + r + '" onclick="toggleRoleTag(this)">' + r + '</span>').join('');
+
   const techWrap = document.getElementById('tech-tag-filters');
-  techWrap.innerHTML = '<span style="font-size:12px;color:#6B7A99;margin-right:2px">技術:</span>' +
+  techWrap.innerHTML = '<span style="font-size:12px;color:#6B7A99;margin-right:2px">技術タグ:</span>' +
     allTech.map(t => '<span class="tag" data-tech="' + t + '" onclick="toggleTechTag(this)">' + t + '</span>').join('');
 }
 
-function toggleTechTag(el) {
-  const t = el.dataset.tech;
-  activeTechTags.has(t) ? activeTechTags.delete(t) : activeTechTags.add(t);
+function toggleIndustryTag(el) {
+  const i = el.dataset.industry;
+  activeIndustryTags.has(i) ? activeIndustryTags.delete(i) : activeIndustryTags.add(i);
+  el.classList.toggle('on');
+  render();
+}
+
+function toggleRoleTag(el) {
+  const r = el.dataset.role;
+  activeRoleTags.has(r) ? activeRoleTags.delete(r) : activeRoleTags.add(r);
   el.classList.toggle('on');
   render();
 }
@@ -332,8 +347,6 @@ function toggleAdvFilters() {
 function clearAllFilters() {
   document.getElementById('q').value = '';
   document.getElementById('tier').value = '';
-  document.getElementById('industry').value = '';
-  document.getElementById('role').value = '';
   document.getElementById('area_filter').value = '';
   document.getElementById('member_filter').value = '';
   document.getElementById('axis_filter').value = '';
@@ -342,6 +355,8 @@ function clearAllFilters() {
   ['min_salary','min_wlb','min_tech','min_social','min_brand','min_culture'].forEach(id => document.getElementById(id).value = '0');
   activeTags.clear();
   activeTechTags.clear();
+  activeIndustryTags.clear();
+  activeRoleTags.clear();
   document.querySelectorAll('.tag.on').forEach(el => el.classList.remove('on'));
   document.getElementById('preset-select').value = '';
   render();
@@ -351,8 +366,8 @@ function getCurrentFilterState() {
   return {
     q: document.getElementById('q').value,
     tier: document.getElementById('tier').value,
-    industry: document.getElementById('industry').value,
-    role: document.getElementById('role').value,
+    activeIndustryTags: Array.from(activeIndustryTags),
+    activeRoleTags: Array.from(activeRoleTags),
     activeTechTags: Array.from(activeTechTags),
     area_filter: document.getElementById('area_filter').value,
     member_filter: document.getElementById('member_filter').value,
@@ -376,8 +391,10 @@ function getCurrentFilterState() {
 function applyFilterState(state) {
   document.getElementById('q').value = state.q || '';
   document.getElementById('tier').value = state.tier || '';
-  document.getElementById('industry').value = state.industry || '';
-  document.getElementById('role').value = state.role || '';
+  activeIndustryTags = new Set(state.activeIndustryTags || []);
+  document.querySelectorAll('#industry-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeIndustryTags.has(el.dataset.industry)); });
+  activeRoleTags = new Set(state.activeRoleTags || []);
+  document.querySelectorAll('#role-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeRoleTags.has(el.dataset.role)); });
   activeTechTags = new Set(state.activeTechTags || []);
   document.querySelectorAll('#tech-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTechTags.has(el.dataset.tech)); });
   document.getElementById('area_filter').value = state.area_filter || '';
@@ -494,8 +511,6 @@ function scoreBar(val) {
 function render() {
   const q = (document.getElementById('q').value||'').toLowerCase();
   const tier = document.getElementById('tier').value;
-  const ind = document.getElementById('industry').value;
-  const role = document.getElementById('role').value;
   const areaFilter = document.getElementById('area_filter').value;
   const memberFilter = document.getElementById('member_filter').value;
   const axisFilter = document.getElementById('axis_filter').value;
@@ -512,8 +527,14 @@ function render() {
   let res = DATA.filter(c => {
     if (!showStopped && c.stopped) return false;
     if (tier && String(c.tier) !== tier) return false;
-    if (ind && !(c.industry||'').split(/,\s*/).includes(ind)) return false;
-    if (role && !(c.roles||'').split(/,\s*/).includes(role)) return false;
+    if (activeIndustryTags.size) {
+      const cInds = (c.industry||'').split(/,\s*/);
+      for (const i of activeIndustryTags) { if (!cInds.includes(i)) return false; }
+    }
+    if (activeRoleTags.size) {
+      const cRoles = (c.roles||'').split(/,\s*/);
+      for (const r of activeRoleTags) { if (!cRoles.includes(r)) return false; }
+    }
     if (activeTechTags.size) {
       const cTechs = (c.tech||'').split(/,\s*/);
       for (const t of activeTechTags) { if (!cTechs.includes(t)) return false; }

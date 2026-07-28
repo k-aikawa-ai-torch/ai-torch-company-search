@@ -236,6 +236,16 @@ async function loadData() {
   DATA = data;
   ALL_MEMBERS = membersRes.data || [];
   document.getElementById('header-count').textContent = DATA.length + '件';
+  const me = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (me) {
+    const myLabel = Object.keys(MEMBER_MAP).find(function(k) { return MEMBER_MAP[k] === me.name; });
+    if (myLabel) {
+      currentMember = myLabel;
+      document.querySelectorAll('.member-tab').forEach(function(t) {
+        t.classList.toggle('active', t.textContent === myLabel);
+      });
+    }
+  }
   renderFunnel();
   renderLabInfo();
   render();

@@ -248,20 +248,20 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <option value="email">メールアドレス</option><option value="decision_yomi">決定コミ</option><option value="motivation_level">温度感</option>
           <option value="current_salary">現年収</option><option value="top_priority_axis">転職軸</option>
         </select>
-        <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
+        <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
         <label>第2ソート:</label>
         <select id="sort2" onchange="render()" style="height:30px;font-size:12px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff">
-          <option value="next_action">NextAction日</option><option value="phase">フェーズ</option>
+          <option value="decision_yomi" selected>決定コミ</option><option value="next_action">NextAction日</option><option value="phase">フェーズ</option>
           <option value="name">候補者名</option><option value="source">流入経路</option>
           <option value="job_type">職種</option><option value="desired_salary">希望年収</option>
           <option value="revenue_forecast">売上見込み</option><option value="registered_at">登録日</option>
           <option value="status">ステータス</option>
           <option value="current_company">現所属/概歴</option><option value="expected_join_date">入社想定日</option>
           <option value="phone">電話番号</option><option value="sns_url">SNS URL</option>
-          <option value="email">メールアドレス</option><option value="decision_yomi">決定コミ</option><option value="motivation_level">温度感</option>
+          <option value="email">メールアドレス</option><option value="motivation_level">温度感</option>
           <option value="current_salary">現年収</option><option value="top_priority_axis">転職軸</option>
         </select>
-        <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
+        <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▼</button>
       </div>
       <button class="add-btn" onclick="openAdd()">＋ 候補者追加</button>
     </div>
@@ -422,6 +422,16 @@ async function loadData() {
   sel.innerHTML = '<option value="">全経路</option>';
   sources.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=cleanSource(s); sel.appendChild(o); });
   loadFileFlags();
+  const me = MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (me) {
+    const myLabel = Object.keys(MEMBER_MAP).find(function(k) { return MEMBER_MAP[k] === me.name; });
+    if (myLabel) {
+      currentMember = myLabel;
+      document.querySelectorAll('.member-tab').forEach(function(t) {
+        t.classList.toggle('active', t.textContent === myLabel);
+      });
+    }
+  }
   render();
 }
 
@@ -450,8 +460,8 @@ function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
 function today() { return new Date().toISOString().substring(0,10); }
 
-let sort1Dir = 1;
-let sort2Dir = 1;
+let sort1Dir = -1;
+let sort2Dir = -1;
 function cleanSource(s) {
   return (s || '').replace(/^[（(]+/, '').trim();
 }
@@ -508,7 +518,11 @@ function compareCandBy(key, a, b) {
   if (key === 'phone') return (a.phone||'').localeCompare(b.phone||'');
   if (key === 'sns_url') return (a.sns_url||'').localeCompare(b.sns_url||'');
   if (key === 'email') return (a.email||'').localeCompare(b.email||'');
-  if (key === 'decision_yomi') return DECISION_YOMI_LIST.indexOf(a.decision_yomi||'') - DECISION_YOMI_LIST.indexOf(b.decision_yomi||'');
+  if (key === 'decision_yomi') {
+    const pa = a.decision_yomi ? parseInt(a.decision_yomi) : 0;
+    const pb = b.decision_yomi ? parseInt(b.decision_yomi) : 0;
+    return pa - pb;
+  }
   if (key === 'motivation_level') return MOTIVATION_LIST.indexOf(a.motivation_level||'') - MOTIVATION_LIST.indexOf(b.motivation_level||'');
   if (key === 'current_salary') return (a.current_salary||0)-(b.current_salary||0);
   if (key === 'top_priority_axis') return AXIS_LIST.indexOf(a.top_priority_axis||'') - AXIS_LIST.indexOf(b.top_priority_axis||'');
@@ -564,7 +578,13 @@ function render() {
     if (naTo && (!c.next_action_day || c.next_action_day > naTo)) return false;
     return true;
   });
-  res.sort((a,b) => { const r1=sort1Dir*compareCandBy(sort1,a,b); return r1!==0?r1:sort2Dir*compareCandBy(sort2,a,b); });
+  res.sort((a,b) => {
+    const r1 = sort1Dir*compareCandBy(sort1,a,b);
+    if (r1 !== 0) return r1;
+    const r2 = sort2Dir*compareCandBy(sort2,a,b);
+    if (r2 !== 0) return r2;
+    return (a.registered_at||'').localeCompare(b.registered_at||'');
+  });
   document.getElementById('count').textContent = res.length + '名';
   if (!res.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="18" class="empty">該当する候補者がいません</td></tr>'; return; }
   document.getElementById('tbody').innerHTML = res.map(c => {
@@ -1301,9 +1321,8 @@ function initFileSection(candidateId) {
 
 async function loadFileFlags() {
   try {
-    const res = await sb.storage.from('candidates-files').list('', { limit: 1000 });
-    const folders = (res.data || []).filter(f => f.id === null);
-    FILE_FLAGS = new Set(folders.map(f => f.name));
+    const { data } = await sb.from('candidate_files').select('candidate_id');
+    FILE_FLAGS = new Set((data || []).map(f => f.candidate_id));
     render();
   } catch (e) {
     // ファイル添付有無の表示だけなので、失敗しても致命的ではない
@@ -1313,19 +1332,19 @@ async function loadFileFlags() {
 async function loadFileList(candidateId) {
   var listDiv = document.getElementById('file-list');
   if (!listDiv) return;
-  var res = await sb.storage.from('candidates-files').list(candidateId);
-  var files = res.data || [];
+  var { data: files } = await sb.from('candidate_files').select('*').eq('candidate_id', candidateId).order('uploaded_at', { ascending: false });
+  files = files || [];
   if (!files.length) {
     listDiv.innerHTML = '<span style="font-size:12px;color:#aaa">ファイルなし</span>';
     return;
   }
-  var paths = files.map(function(f) { return candidateId + '/' + f.name; });
+  var paths = files.map(function(f) { return f.storage_path; });
   var sRes = await sb.storage.from('candidates-files').createSignedUrls(paths, 3600);
   var signedUrls = sRes.data || [];
   listDiv.innerHTML = '';
   files.forEach(function(f, i) {
     var url = signedUrls[i] ? signedUrls[i].signedUrl : '#';
-    var ext = f.name.split('.').pop().toUpperCase();
+    var ext = (f.display_name.split('.').pop() || '').toUpperCase();
     var item = document.createElement('div');
     item.className = 'file-item';
 
@@ -1337,13 +1356,13 @@ async function loadFileList(candidateId) {
     var link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
-    link.textContent = decodeFileName(f.name);
+    link.textContent = f.display_name;
     item.appendChild(link);
 
     var delBtn = document.createElement('button');
     delBtn.className = 'file-del-btn';
     delBtn.textContent = '削除';
-    delBtn.addEventListener('click', function() { doDeleteFile(candidateId, f.name, decodeFileName(f.name)); });
+    delBtn.addEventListener('click', function() { doDeleteFile(candidateId, f.id, f.storage_path, f.display_name); });
     item.appendChild(delBtn);
 
     listDiv.appendChild(item);
@@ -1355,26 +1374,37 @@ async function doUpload(files, candidateId) {
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
     if (msgDiv) msgDiv.textContent = f.name + ' をアップロード中…';
-    var safeName = encodeURIComponent(f.name);
-    var res = await sb.storage.from('candidates-files').upload(candidateId + '/' + safeName, f, { upsert: true });
+    // ファイル名の文字種に関わらず安全にアップロードできるよう、
+    // ストレージ上は拡張子のみ保持したランダム名で保存し、元のファイル名は別テーブルで管理する
+    var extMatch = f.name.match(/\.[^.]+$/);
+    var ext = extMatch ? extMatch[0] : '';
+    var safeName = Date.now() + '_' + Math.random().toString(36).slice(2,8) + ext;
+    var storagePath = candidateId + '/' + safeName;
+    var res = await sb.storage.from('candidates-files').upload(storagePath, f, { upsert: true });
     if (res.error) {
       alert(f.name + ' のアップロードに失敗しました: ' + res.error.message);
+      continue;
+    }
+    var { error: metaError } = await sb.from('candidate_files').insert({
+      candidate_id: candidateId, storage_path: storagePath, display_name: f.name,
+    });
+    if (metaError) {
+      alert(f.name + ' の情報保存に失敗しました: ' + metaError.message);
     }
   }
   if (msgDiv) msgDiv.textContent = '✅ アップロード完了';
   setTimeout(function() { if (msgDiv) msgDiv.textContent = ''; }, 2000);
   loadFileList(candidateId);
+  loadFileFlags();
 }
 
-function decodeFileName(name) {
-  try { return decodeURIComponent(name); } catch (e) { return name; }
-}
-
-async function doDeleteFile(candidateId, fileName, displayName) {
-  if (!confirm((displayName || fileName) + ' を削除してよいですか？')) return;
-  var res = await sb.storage.from('candidates-files').remove([candidateId + '/' + fileName]);
+async function doDeleteFile(candidateId, fileId, storagePath, displayName) {
+  if (!confirm(displayName + ' を削除してよいですか？')) return;
+  var res = await sb.storage.from('candidates-files').remove([storagePath]);
   if (res.error) { alert('削除に失敗しました: ' + res.error.message); return; }
+  await sb.from('candidate_files').delete().eq('id', fileId);
   loadFileList(candidateId);
+  loadFileFlags();
 }
 </script>
 </body>
