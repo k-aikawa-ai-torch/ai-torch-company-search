@@ -49,6 +49,8 @@ td input, td select{width:100%;height:28px;padding:0 6px;border:1px solid transp
 td input:hover, td select:hover{border-color:#DEE7F7;background:#fff}
 td input:focus, td select:focus{border-color:#0D40D9;background:#fff;outline:none}
 .icon-btn{background:none;border:none;cursor:pointer;color:#6B7A99;font-size:14px;padding:4px}
+#pipeline-table.hide-member-col .col-member{display:none}
+table.hide-member-col th:first-child, table.hide-member-col td:first-child{display:none}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
 .count{font-size:13px;color:#6B7A99}
 .sort-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:#666}
@@ -138,7 +140,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 
     <div class="funnel-row" id="funnel"></div>
     <div class="filters">
-      <input type="text" id="q" placeholder="求人名・メモで検索…" oninput="render()">
+      <input type="text" id="q" placeholder="候補者名・企業名・求人名・アクション内容・メモで検索…" oninput="render()">
       <button class="filter-btn off" id="adv-filter-toggle" onclick="document.getElementById('status-phase-filters').classList.toggle('show')">ステータス/フェーズで絞る ▾</button>
       <select id="view-select" onchange="applySelectedView()" style="height:36px;padding:0 8px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px"><option value="">ビューを選択…</option></select>
       <button class="filter-btn off" onclick="saveCurrentView()">💾 ビューを保存</button>
@@ -158,41 +160,60 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <label>第1ソート:</label>
         <select id="sort1" onchange="render()">
           <option value="candidate">候補者名</option>
-          <option value="next_action">NextAction日</option>
-          <option value="phase">フェーズ</option>
-          <option value="created">登録日</option>
+          <option value="company">企業名</option>
           <option value="job">求人名</option>
+          <option value="phase">フェーズ</option>
+          <option value="next_action">NextAction日</option>
+          <option value="next_action_note">アクション内容</option>
+          <option value="memo">メモ</option>
+          <option value="decision_yomi">決定ヨミ</option>
+          <option value="revenue_forecast">売上見込</option>
+          <option value="source">流入経路</option>
+          <option value="status">ステータス</option>
+          <option value="created">登録日</option>
         </select>
+        <button id="sort1-dir-btn" onclick="toggleSortDir(1)" title="第1ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
         <label style="margin-left:8px">第2ソート:</label>
         <select id="sort2" onchange="render()">
           <option value="phase">フェーズ</option>
           <option value="next_action">NextAction日</option>
           <option value="candidate">候補者名</option>
-          <option value="created">登録日</option>
+          <option value="company">企業名</option>
           <option value="job">求人名</option>
+          <option value="next_action_note">アクション内容</option>
+          <option value="memo">メモ</option>
+          <option value="decision_yomi">決定ヨミ</option>
+          <option value="revenue_forecast">売上見込</option>
+          <option value="source">流入経路</option>
+          <option value="status">ステータス</option>
+          <option value="created">登録日</option>
         </select>
+        <button id="sort2-dir-btn" onclick="toggleSortDir(2)" title="第2ソートの並び順を反転" style="height:30px;padding:0 10px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#14213D">▲</button>
       </div>
     </div>
     <div class="table-wrap">
       <datalist id="company-options"></datalist>
-      <table>
+      <table id="pipeline-table">
         <thead>
           <tr>
-            <th>担当</th>
+            <th class="col-member">担当</th>
+            <th>ステータス</th>
             <th>候補者</th>
             <th>企業名</th>
             <th>求人名</th>
             <th>フェーズ</th>
-            <th>ステータス</th>
             <th>NextAction日</th>
             <th>アクション内容</th>
             <th>メモ</th>
-            <th>登録日</th>
+            <th>決定ヨミ</th>
+            <th>売上見込</th>
+            <th>流入経路</th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="11" class="loading">データを読み込み中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="13" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
+      <div class="summary-grid" id="list-summary"></div>
     </div>
   </div>
   </div>
@@ -229,6 +250,8 @@ let CURRENT_USER_EMAIL = null;
 let activeStatusTags = new Set(['進行中']);
 let activePhaseTags = new Set();
 let actionListRange = { from: -7, to: 14 };
+let sort1Dir = 1;
+let sort2Dir = 1;
 
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
@@ -296,7 +319,7 @@ async function loadData() {
     sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name'),
   ]);
   if (error) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="loading">読み込み失敗</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="13" class="loading">読み込み失敗</td></tr>';
     return;
   }
   DATA = data;
@@ -330,10 +353,17 @@ async function loadData() {
   render();
 }
 
+function updateMemberColVisibility() {
+  const table = document.getElementById('pipeline-table');
+  if (!table) return;
+  table.classList.toggle('hide-member-col', currentMember !== '全員');
+}
+
 function setMember(m, el) {
   currentMember = m;
   document.querySelectorAll('.member-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  updateMemberColVisibility();
   renderFunnel();
   renderMonthSummary();
   renderActionList();
@@ -346,7 +376,7 @@ function getFiltered() {
     if (currentMember !== '全員' && p.members?.name !== MEMBER_MAP[currentMember]) return false;
     if (activeStatusTags.size && !activeStatusTags.has(p.status)) return false;
     if (activePhaseTags.size && !activePhaseTags.has(p.phase)) return false;
-    if (q && !(p.job_name||'').toLowerCase().includes(q) && !(p.memo||'').toLowerCase().includes(q)) return false;
+    if (q && !(p.job_name||'').toLowerCase().includes(q) && !(p.memo||'').toLowerCase().includes(q) && !(p.candidates?.name||'').toLowerCase().includes(q) && !(p.companies?.name||'').toLowerCase().includes(q) && !(p.next_action_note||'').toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -417,6 +447,7 @@ function getPhaseClass(p) {
 
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
+function cleanSource(s) { return (s || '').replace(/^[（(]+/, '').trim(); }
 function today() { return new Date().toISOString().substring(0,10); }
 function dayDiff(d) {
   if (!d) return null;
@@ -473,16 +504,17 @@ function renderMonthSummary() {
     if (p && p.candidates?.revenue_yomi) forecastRevenue += p.candidates.revenue_yomi;
   });
 
-  // 当月パイプ数・パイプ人数：当月中に作成されたパイプライン
-  const monthPipelines = scoped.filter(p => (p.created_at||'').substring(0,7) === month);
-  const monthUniqueCandidates = new Set(monthPipelines.map(p => p.candidate_id).filter(Boolean));
+  // パイプ数・パイプ人数：現在進行中×カジュアル面談〜内定のフェーズのパイプライン
+  const PIPE_COUNT_PHASE_RANGE = ['カジュアル面談','一次面接','二次～面接','最終面接','内定'];
+  const activePipes = scoped.filter(p => p.status === '進行中' && PIPE_COUNT_PHASE_RANGE.includes(p.phase));
+  const activeUniqueCandidates = new Set(activePipes.map(p => p.candidate_id).filter(Boolean));
 
   el.innerHTML = [
     ['当月確定売上', fmtSalary(confirmedRevenue)],
     ['当月確定粗利', fmtSalary(confirmedProfit)],
     ['当月売上見込み', fmtSalary(forecastRevenue)],
-    ['当月パイプ数', monthPipelines.length + '件'],
-    ['当月パイプ人数', monthUniqueCandidates.size + '名'],
+    ['パイプ数', activePipes.length + '件'],
+    ['パイプ人数', activeUniqueCandidates.size + '名'],
   ].map(([label,value]) => '<div class="summary-card"><div class="summary-label">' + label + '</div><div class="summary-value">' + value + '</div></div>').join('');
 }
 
@@ -584,6 +616,8 @@ function getCurrentPipelineFilterState() {
     activePhaseTags: Array.from(activePhaseTags),
     sort1: document.getElementById('sort1').value,
     sort2: document.getElementById('sort2').value,
+    sort1Dir: sort1Dir,
+    sort2Dir: sort2Dir,
   };
 }
 
@@ -593,6 +627,10 @@ function applyPipelineView(filters) {
   activePhaseTags = new Set(filters.activePhaseTags || []);
   document.getElementById('sort1').value = filters.sort1 || 'candidate';
   document.getElementById('sort2').value = filters.sort2 || 'phase';
+  sort1Dir = filters.sort1Dir || 1;
+  sort2Dir = filters.sort2Dir || 1;
+  document.getElementById('sort1-dir-btn').textContent = sort1Dir === 1 ? '▲' : '▼';
+  document.getElementById('sort2-dir-btn').textContent = sort2Dir === 1 ? '▲' : '▼';
   renderStatusPhaseFilters();
   renderFunnel();
   render();
@@ -652,6 +690,30 @@ async function deleteSelectedView() {
   renderViewSelect();
 }
 
+async function deletePipelineRow(id) {
+  const p = DATA.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm((p.candidates?.name||'候補者') + ' の「' + (p.job_name||'求人') + '」を削除してよいですか？この操作は取り消せません。')) return;
+  const { error } = await sb.from('pipeline').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  DATA = DATA.filter(x => x.id !== id);
+  renderFunnel();
+  renderMonthSummary();
+  renderActionList();
+  render();
+}
+
+function toggleSortDir(which) {
+  if (which === 1) {
+    sort1Dir *= -1;
+    document.getElementById('sort1-dir-btn').textContent = sort1Dir === 1 ? '▲' : '▼';
+  } else {
+    sort2Dir *= -1;
+    document.getElementById('sort2-dir-btn').textContent = sort2Dir === 1 ? '▲' : '▼';
+  }
+  render();
+}
+
 function render() {
   let res = getFiltered();
   const sort1 = document.getElementById('sort1').value;
@@ -665,20 +727,31 @@ function render() {
       return 0;
     }
     if (key === 'phase') return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
-    if (key === 'created') return (b.created_at||'').localeCompare(a.created_at||'');
+    if (key === 'created') return (a.created_at||'').localeCompare(b.created_at||'');
     if (key === 'job') return (a.job_name||'').localeCompare(b.job_name||'','ja');
     if (key === 'candidate') return (a.candidates?.name||'').localeCompare(b.candidates?.name||'','ja');
+    if (key === 'company') return (a.companies?.name||'').localeCompare(b.companies?.name||'','ja');
+    if (key === 'next_action_note') return (a.next_action_note||'').localeCompare(b.next_action_note||'','ja');
+    if (key === 'memo') return (a.memo||'').localeCompare(b.memo||'','ja');
+    if (key === 'decision_yomi') {
+      const pa = a.candidates?.decision_yomi ? parseInt(a.candidates.decision_yomi) : 0;
+      const pb = b.candidates?.decision_yomi ? parseInt(b.candidates.decision_yomi) : 0;
+      return pa - pb;
+    }
+    if (key === 'revenue_forecast') return (a.candidates?.revenue_forecast||0) - (b.candidates?.revenue_forecast||0);
+    if (key === 'source') return cleanSource(a.candidates?.source).localeCompare(cleanSource(b.candidates?.source),'ja');
+    if (key === 'status') return PIPELINE_STATUS_LIST.indexOf(a.status) - PIPELINE_STATUS_LIST.indexOf(b.status);
     return 0;
   }
 
   res.sort((a,b) => {
-    const r1 = compareBy(sort1, a, b);
+    const r1 = sort1Dir * compareBy(sort1, a, b);
     if (r1 !== 0) return r1;
-    return compareBy(sort2, a, b);
+    return sort2Dir * compareBy(sort2, a, b);
   });
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="empty">該当する案件がありません</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="13" class="empty">該当する案件がありません</td></tr>';
     return;
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
@@ -690,19 +763,68 @@ function render() {
       '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>'
     ).join('');
     return `<tr data-id="${p.id}">
-      <td style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
+      <td class="col-member" style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
+      <td><select onchange="inlineSave('${p.id}','status',this.value||null)">${statusOpts}</select></td>
       <td><strong>${p.candidates?.name||'-'}</strong></td>
       <td><input type="text" list="company-options" value="${(p.companies?.name||'').replace(/"/g,'&quot;')}" onchange="inlineSaveCompany('${p.id}',this.value)" placeholder="企業名で検索/新規入力"></td>
       <td><input type="text" value="${(p.job_name||'').replace(/"/g,'&quot;').replace(/\n/g,' ')}" onchange="inlineSave('${p.id}','job_name',this.value)"></td>
       <td><select onchange="inlinePhaseSave('${p.id}',this.value)">${phaseOpts}</select></td>
-      <td><select onchange="inlineSave('${p.id}','status',this.value||null)">${statusOpts}</select></td>
       <td><input type="date" value="${p.next_action_day||''}" onchange="inlineSave('${p.id}','next_action_day',this.value||null)"></td>
       <td><input type="text" value="${(p.next_action_note||'').replace(/"/g,'&quot;')}" onchange="inlineSave('${p.id}','next_action_note',this.value)" placeholder="やること"></td>
       <td><input type="text" value="${memo.replace(/"/g,'&quot;')}" onchange="inlineSave('${p.id}','memo',this.value)" title="${memo}"></td>
-      <td style="color:#aaa">${fmtDate(p.created_at)}</td>
-      <td><button class="icon-btn" onclick="openModal('${p.id}')" title="詳細">🔍</button></td>
+      <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${p.candidates?.decision_yomi||'-'}</td>
+      <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${fmtSalary(p.candidates?.revenue_forecast)}</td>
+      <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${cleanSource(p.candidates?.source)||'-'}</td>
+      <td><button class="icon-btn" onclick="openModal('${p.id}')" title="詳細">🔍</button><button class="icon-btn" onclick="deletePipelineRow('${p.id}')" title="削除" style="color:#b3261e">🗑️</button></td>
     </tr>`;
   }).join('');
+  renderListSummary(res);
+  updateMemberColumnVisibility();
+}
+
+function updateMemberColumnVisibility() {
+  const table = document.getElementById('pipeline-table');
+  if (table) table.classList.toggle('hide-member-col', currentMember !== '全員');
+}
+
+function renderListSummary(res) {
+  const el = document.getElementById('list-summary');
+  if (!el) return;
+  const uniqueCandidates = new Set(res.map(p => p.candidate_id).filter(Boolean)).size;
+  const uniqueCompanies = new Set(res.map(p => p.company_id).filter(Boolean)).size;
+  const uniqueJobs = new Set(res.map(p => p.job_name).filter(Boolean)).size;
+  const phaseCount = res.length;
+
+  // 売上見込は「今月のまとめ」と同じ定義（当月売上見込－当月確定売上）
+  const base = getFilteredBase();
+  const month = currentMonthKey();
+  const acceptMap = firstOccurrenceMap(base, ACCEPT_PHASES);
+  const countedCandidates = new Set();
+  let confirmedRevenue = 0;
+  Object.keys(acceptMap).forEach(pid => {
+    if (acceptMap[pid].substring(0,7) !== month) return;
+    const p = base.find(x => x.id === pid);
+    if (!p || !p.candidate_id || countedCandidates.has(p.candidate_id)) return;
+    countedCandidates.add(p.candidate_id);
+    if (p.candidates?.revenue_forecast) confirmedRevenue += p.candidates.revenue_forecast;
+  });
+  const qualifyingCandidateIds = new Set(
+    base.filter(p => p.status === '進行中' && FORECAST_ELIGIBLE_PHASES.includes(p.phase)).map(p => p.candidate_id).filter(Boolean)
+  );
+  let forecastRevenue = 0;
+  qualifyingCandidateIds.forEach(cid => {
+    const p = base.find(x => x.candidate_id === cid);
+    if (p && p.candidates?.revenue_yomi) forecastRevenue += p.candidates.revenue_yomi;
+  });
+  const netForecast = forecastRevenue - confirmedRevenue;
+
+  el.innerHTML = [
+    ['候補者（一意）', uniqueCandidates + '名'],
+    ['企業名（一意）', uniqueCompanies + '社'],
+    ['求人名（一意）', uniqueJobs + '件'],
+    ['フェーズ（全件）', phaseCount + '件'],
+    ['売上見込（当月見込－当月確定）', fmtSalary(netForecast)],
+  ].map(([label,value]) => '<div class="summary-card"><div class="summary-label">' + label + '</div><div class="summary-value">' + value + '</div></div>').join('');
 }
 
 function renderCompanyDatalist() {
