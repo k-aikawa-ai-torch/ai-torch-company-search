@@ -551,15 +551,21 @@ function render() {
     if (tier && String(c.tier) !== tier) return false;
     if (activeIndustryTags.size) {
       const cInds = (c.industry||'').split(/,\s*/);
-      for (const i of activeIndustryTags) { if (!cInds.includes(i)) return false; }
+      let anyMatch = false;
+      for (const i of activeIndustryTags) { if (cInds.includes(i)) { anyMatch = true; break; } }
+      if (!anyMatch) return false;
     }
     if (activeRoleTags.size) {
       const cRoles = (c.roles||'').split(/,\s*/);
-      for (const r of activeRoleTags) { if (!cRoles.includes(r)) return false; }
+      let anyMatch = false;
+      for (const r of activeRoleTags) { if (cRoles.includes(r)) { anyMatch = true; break; } }
+      if (!anyMatch) return false;
     }
     if (activeTechTags.size) {
       const cTechs = (c.tech||'').split(/,\s*/);
-      for (const t of activeTechTags) { if (!cTechs.includes(t)) return false; }
+      let anyMatch = false;
+      for (const t of activeTechTags) { if (cTechs.includes(t)) { anyMatch = true; break; } }
+      if (!anyMatch) return false;
     }
     if (areaFilter && !(c.area||'').split(/,\s*/).includes(areaFilter)) return false;
     if (memberFilter && resolveMemberId(c) !== memberFilter) return false;
@@ -577,9 +583,11 @@ function render() {
     if (minSocial && (c.score_social === null || c.score_social < minSocial)) return false;
     if (minBrand && (c.score_brand === null || c.score_brand < minBrand)) return false;
     if (minCulture && (c.score_culture === null || c.score_culture < minCulture)) return false;
-    for (const k of activeTags) {
-      if (k === 'stopped') continue;
-      if (!c[k]) return false;
+    const boolTags = Array.from(activeTags).filter(k => k !== 'stopped');
+    if (boolTags.length) {
+      let anyMatch = false;
+      for (const k of boolTags) { if (c[k]) { anyMatch = true; break; } }
+      if (!anyMatch) return false;
     }
     if (q && !(c.name||'').toLowerCase().includes(q) && !(c.tech||'').toLowerCase().includes(q) && !(c.roles||'').toLowerCase().includes(q) && !(c.industry||'').toLowerCase().includes(q)) return false;
     return true;
