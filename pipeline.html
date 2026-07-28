@@ -292,7 +292,7 @@ async function loadData() {
     sb.from('members').select('*'),
     sb.from('companies').select('id,name'),
     fetchAllRange('pipeline_phase_history', '*'),
-    sb.from('pipeline_views').select('*,members(display_name,name)').order('name'),
+    sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name'),
   ]);
   if (error) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="loading">読み込み失敗</td></tr>';
@@ -617,7 +617,7 @@ async function saveCurrentView() {
     const { error } = await sb.from('pipeline_views').insert({ name, filters, created_by: ME ? ME.id : null });
     if (error) { alert('保存に失敗しました: ' + error.message); return; }
   }
-  const { data, error: refetchError } = await sb.from('pipeline_views').select('*,members(display_name,name)').order('name');
+  const { data, error: refetchError } = await sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name');
   if (refetchError) { alert('一覧の再取得に失敗しました: ' + refetchError.message); return; }
   PIPELINE_VIEWS = data || [];
   renderViewSelect();
