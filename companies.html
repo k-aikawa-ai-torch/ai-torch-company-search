@@ -134,7 +134,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
     <div class="tag-filters" id="tech-tag-filters" style="margin-bottom:6px">
       <span style="font-size:12px;color:#6B7A99;margin-right:2px">技術タグ:</span>
     </div>
-    <div class="tag-filters">
+    <div class="tag-filters" id="bool-tag-filters">
       <span style="font-size:12px;color:#6B7A99;margin-right:2px">タグ:</span>
       <span class="tag" data-key="remote" onclick="toggleTag(this)">フルリモ</span>
       <span class="tag" data-key="global" onclick="toggleTag(this)">グローバル</span>
@@ -432,7 +432,7 @@ function applyFilterState(state) {
   document.getElementById('min_brand').value = state.min_brand || '0';
   document.getElementById('min_culture').value = state.min_culture || '0';
   activeTags = new Set(state.activeTags || []);
-  document.querySelectorAll('.tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTags.has(el.dataset.key)); });
+  document.querySelectorAll('#bool-tag-filters .tag').forEach(el => { el.classList.toggle('on', activeTags.has(el.dataset.key)); });
   document.getElementById('sort1').value = state.sort1 || 'offer';
   document.getElementById('sort2').value = state.sort2 || 'name';
   sort1Dir = state.sort1Dir || -1;
