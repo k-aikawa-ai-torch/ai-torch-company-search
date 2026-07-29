@@ -7,7 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#FFFFFF;color:#14213D;min-height:100vh}
+html{overflow-x:hidden}
+body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#FFFFFF;color:#14213D;min-height:100vh;overflow-x:hidden}
 #lock-screen{position:fixed;inset:0;background:#14213D;display:flex;align-items:center;justify-content:center;z-index:9999}
 #lock-box{background:#FFFFFF;border-radius:4px;padding:36px 40px;width:320px;text-align:center}
 #lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
@@ -43,7 +44,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .action-row .a-phase{min-width:80px}
 .action-row .a-note{flex:1}
 .action-row .a-note input{width:100%;height:28px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;font-size:12px}
-.action-list-wrap{max-height:480px;overflow-y:auto;border:1px solid #DEE7F7;border-radius:10px;padding:12px;background:#fafbfe}
+.action-list-wrap{max-height:220px;overflow-y:auto;border:1px solid #DEE7F7;border-radius:10px;padding:12px;background:#fafbfe}
 .action-list-more{text-align:center;padding:8px;font-size:12px;color:#0D40D9;cursor:pointer}
 td input, td select{width:100%;height:28px;padding:0 6px;border:1px solid transparent;border-radius:4px;font-size:12px;background:transparent}
 td input:hover, td select:hover{border-color:#DEE7F7;background:#fff}
