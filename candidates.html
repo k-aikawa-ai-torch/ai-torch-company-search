@@ -355,6 +355,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// メモは改行1回でもそのまま改行として表示されるようにする（Markdown標準は改行2回=空行が必要なため）
+marked.setOptions({ breaks: true });
 
 let DATA = [];
 let MEMBERS = [];
@@ -681,6 +683,7 @@ function renderDetail(c, pipelines) {
         '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
         '<td style="color:#666;font-size:11px">' + (p.status||'-') + '</td>' +
         '<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.next_action_note||'-') + '</td>' +
         '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.memo||'').replace(/\n/g,' ') + '</td>' +
         '<td><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">編集</button></td>' +
         '</tr>';
@@ -688,7 +691,7 @@ function renderDetail(c, pipelines) {
   }
 
   const pipelineTable = pipelines.length > 0
-    ? '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    ? '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
     : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
 
   document.getElementById('modal-detail').innerHTML =
@@ -1129,6 +1132,7 @@ function showPipelineModal(p) {
     '<div class="form-group"><label>フェーズ</label><select id="pf-phase" onchange="autoSetJoinedStatus()"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="pf-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
     '<div class="form-group"><label>NextAction日</label><input id="pf-next-action-day" type="date" value="' + (p ? p.next_action_day||'' : '') + '"></div>' +
+    '<div class="form-group"><label>アクション内容</label><input id="pf-next-action-note" value="' + (p ? (p.next_action_note||'').replace(/"/g,'&quot;') : '') + '" placeholder="例：面接日程の調整連絡"></div>' +
     '<div class="form-group"><label>推薦日</label><input id="pf-recommended-at" type="date" value="' + (p ? p.recommended_at||'' : '') + '"></div>' +
     '<div class="form-group full"><label>メモ</label><textarea id="pf-memo" style="height:120px">' + (p ? p.memo||'' : '') + '</textarea></div>' +
     '</div>' +
@@ -1164,6 +1168,7 @@ async function savePipeline() {
     phase: document.getElementById('pf-phase').value || null,
     status: document.getElementById('pf-phase').value === '入社済み' ? '終了_入社済み' : (document.getElementById('pf-status').value || null),
     next_action_day: document.getElementById('pf-next-action-day').value || null,
+    next_action_note: document.getElementById('pf-next-action-note').value || null,
     recommended_at: document.getElementById('pf-recommended-at').value || null,
     memo: document.getElementById('pf-memo').value || null,
     updated_at: new Date().toISOString(),
