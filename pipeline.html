@@ -50,6 +50,12 @@ td input, td select{width:100%;height:28px;padding:0 6px;border:1px solid transp
 td input:hover, td select:hover{border-color:#DEE7F7;background:#fff}
 td input:focus, td select:focus{border-color:#0D40D9;background:#fff;outline:none}
 .icon-btn{background:none;border:none;cursor:pointer;color:#6B7A99;font-size:14px;padding:4px}
+#pipeline-table{table-layout:fixed;width:100%}
+#pipeline-table thead th{position:sticky;top:0;z-index:5;background:#f9f9f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col-resizer{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:6;user-select:none}
+.col-resizer:hover, .col-resizer.resizing{background:#0D40D9}
+#pipeline-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
+#pipeline-table td input, #pipeline-table td select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #pipeline-table.hide-member-col .col-member{display:none}
 table.hide-member-col th:first-child, table.hide-member-col td:first-child{display:none}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
@@ -195,20 +201,35 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <div class="table-wrap">
       <datalist id="company-options"></datalist>
       <table id="pipeline-table">
+        <colgroup>
+          <col id="col-0" style="width:60px">
+          <col id="col-1" style="width:110px">
+          <col id="col-2" style="width:90px">
+          <col id="col-3" style="width:160px">
+          <col id="col-4" style="width:180px">
+          <col id="col-5" style="width:100px">
+          <col id="col-6" style="width:130px">
+          <col id="col-7" style="width:160px">
+          <col id="col-8" style="width:160px">
+          <col id="col-9" style="width:80px">
+          <col id="col-10" style="width:90px">
+          <col id="col-11" style="width:100px">
+          <col id="col-12" style="width:70px">
+        </colgroup>
         <thead>
           <tr>
-            <th class="col-member">担当</th>
-            <th>ステータス</th>
-            <th>候補者</th>
-            <th>企業名</th>
-            <th>求人名</th>
-            <th>フェーズ</th>
-            <th>NextAction日</th>
-            <th>アクション内容</th>
-            <th>メモ</th>
-            <th>決定ヨミ</th>
-            <th>売上見込</th>
-            <th>流入経路</th>
+            <th class="col-member" data-col="0">担当<span class="col-resizer" data-col="0"></span></th>
+            <th data-col="1">ステータス<span class="col-resizer" data-col="1"></span></th>
+            <th data-col="2">候補者<span class="col-resizer" data-col="2"></span></th>
+            <th data-col="3">企業名<span class="col-resizer" data-col="3"></span></th>
+            <th data-col="4">求人名<span class="col-resizer" data-col="4"></span></th>
+            <th data-col="5">フェーズ<span class="col-resizer" data-col="5"></span></th>
+            <th data-col="6">NextAction日<span class="col-resizer" data-col="6"></span></th>
+            <th data-col="7">アクション内容<span class="col-resizer" data-col="7"></span></th>
+            <th data-col="8">メモ<span class="col-resizer" data-col="8"></span></th>
+            <th data-col="9">決定ヨミ<span class="col-resizer" data-col="9"></span></th>
+            <th data-col="10">売上見込<span class="col-resizer" data-col="10"></span></th>
+            <th data-col="11">流入経路<span class="col-resizer" data-col="11"></span></th>
             <th></th>
           </tr>
         </thead>
@@ -703,6 +724,33 @@ async function deletePipelineRow(id) {
   renderActionList();
   render();
 }
+
+function initColumnResize() {
+  let dragging = null, startX = 0, startWidth = 0;
+  document.querySelectorAll('.col-resizer').forEach(function(handle) {
+    handle.addEventListener('mousedown', function(e) {
+      const col = document.getElementById('col-' + handle.dataset.col);
+      if (!col) return;
+      dragging = col;
+      startX = e.clientX;
+      startWidth = col.getBoundingClientRect().width;
+      handle.classList.add('resizing');
+      e.preventDefault();
+    });
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+    dragging.style.width = newWidth + 'px';
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) {
+      document.querySelectorAll('.col-resizer.resizing').forEach(h => h.classList.remove('resizing'));
+      dragging = null;
+    }
+  });
+}
+initColumnResize();
 
 function toggleSortDir(which) {
   if (which === 1) {
