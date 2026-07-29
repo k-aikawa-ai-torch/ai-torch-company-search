@@ -51,8 +51,8 @@ td input:hover, td select:hover{border-color:#DEE7F7;background:#fff}
 td input:focus, td select:focus{border-color:#0D40D9;background:#fff;outline:none}
 .icon-btn{background:none;border:none;cursor:pointer;color:#6B7A99;font-size:14px;padding:4px}
 #pipeline-table{table-layout:fixed;width:100%}
-#pipeline-table thead th{position:sticky;top:0;z-index:5;background:#f9f9f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.col-resizer{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:6;user-select:none}
+#pipeline-table thead th{position:sticky;top:0;z-index:5;background:#f9f9f7;white-space:nowrap}
+.col-resizer{position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:6;user-select:none}
 .col-resizer:hover, .col-resizer.resizing{background:#0D40D9}
 #pipeline-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
 #pipeline-table td input, #pipeline-table td select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -203,15 +203,15 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       <table id="pipeline-table">
         <colgroup>
           <col id="col-0" style="width:60px">
-          <col id="col-1" style="width:110px">
-          <col id="col-2" style="width:90px">
-          <col id="col-3" style="width:160px">
-          <col id="col-4" style="width:180px">
-          <col id="col-5" style="width:100px">
-          <col id="col-6" style="width:130px">
+          <col id="col-1" style="width:220px">
+          <col id="col-2" style="width:72px">
+          <col id="col-3" style="width:480px">
+          <col id="col-4" style="width:90px">
+          <col id="col-5" style="width:50px">
+          <col id="col-6" style="width:173px">
           <col id="col-7" style="width:160px">
           <col id="col-8" style="width:160px">
-          <col id="col-9" style="width:80px">
+          <col id="col-9" style="width:16px">
           <col id="col-10" style="width:90px">
           <col id="col-11" style="width:100px">
           <col id="col-12" style="width:70px">
@@ -235,7 +235,6 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         </thead>
         <tbody id="tbody"><tr><td colspan="13" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
-      <div class="summary-grid" id="list-summary"></div>
     </div>
   </div>
   </div>
@@ -827,53 +826,12 @@ function render() {
       <td><button class="icon-btn" onclick="openModal('${p.id}')" title="詳細">🔍</button><button class="icon-btn" onclick="deletePipelineRow('${p.id}')" title="削除" style="color:#b3261e">🗑️</button></td>
     </tr>`;
   }).join('');
-  renderListSummary(res);
   updateMemberColumnVisibility();
 }
 
 function updateMemberColumnVisibility() {
   const table = document.getElementById('pipeline-table');
   if (table) table.classList.toggle('hide-member-col', currentMember !== '全員');
-}
-
-function renderListSummary(res) {
-  const el = document.getElementById('list-summary');
-  if (!el) return;
-  const uniqueCandidates = new Set(res.map(p => p.candidate_id).filter(Boolean)).size;
-  const uniqueCompanies = new Set(res.map(p => p.company_id).filter(Boolean)).size;
-  const uniqueJobs = new Set(res.map(p => p.job_name).filter(Boolean)).size;
-  const phaseCount = res.length;
-
-  // 売上見込は「今月のまとめ」と同じ定義（当月売上見込－当月確定売上）
-  const base = getFilteredBase();
-  const month = currentMonthKey();
-  const acceptMap = firstOccurrenceMap(base, ACCEPT_PHASES);
-  const countedCandidates = new Set();
-  let confirmedRevenue = 0;
-  Object.keys(acceptMap).forEach(pid => {
-    if (acceptMap[pid].substring(0,7) !== month) return;
-    const p = base.find(x => x.id === pid);
-    if (!p || !p.candidate_id || countedCandidates.has(p.candidate_id)) return;
-    countedCandidates.add(p.candidate_id);
-    if (p.candidates?.revenue_forecast) confirmedRevenue += p.candidates.revenue_forecast;
-  });
-  const qualifyingCandidateIds = new Set(
-    base.filter(p => p.status === '進行中' && FORECAST_ELIGIBLE_PHASES.includes(p.phase)).map(p => p.candidate_id).filter(Boolean)
-  );
-  let forecastRevenue = 0;
-  qualifyingCandidateIds.forEach(cid => {
-    const p = base.find(x => x.candidate_id === cid);
-    if (p && p.candidates?.revenue_yomi) forecastRevenue += p.candidates.revenue_yomi;
-  });
-  const netForecast = forecastRevenue - confirmedRevenue;
-
-  el.innerHTML = [
-    ['候補者（一意）', uniqueCandidates + '名'],
-    ['企業名（一意）', uniqueCompanies + '社'],
-    ['求人名（一意）', uniqueJobs + '件'],
-    ['フェーズ（全件）', phaseCount + '件'],
-    ['売上見込（当月見込－当月確定）', fmtSalary(netForecast)],
-  ].map(([label,value]) => '<div class="summary-card"><div class="summary-label">' + label + '</div><div class="summary-value">' + value + '</div></div>').join('');
 }
 
 function renderCompanyDatalist() {
