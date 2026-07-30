@@ -440,6 +440,15 @@ function getFilteredBase() {
   });
 }
 
+// 確定売上・粗利・パイプ数などの集計は、画面上のステータス絞り込みの影響を受けてはいけない
+// （内定承諾になると自動でステータスが変わるため、絞り込みで確定実績が消えてしまう）
+function getMemberScopedData() {
+  return DATA.filter(p => {
+    if (currentMember !== '全員' && p.members?.name !== MEMBER_MAP[currentMember]) return false;
+    return true;
+  });
+}
+
 function renderFunnel() {
   const base = getFilteredBase();
   const counts = {};
@@ -517,7 +526,7 @@ function currentMonthKey() { return new Date().toISOString().substring(0,7); }
 function renderMonthSummary() {
   const el = document.getElementById('month-summary');
   if (!el) return;
-  const scoped = getFilteredBase();
+  const scoped = getMemberScopedData();
   const month = currentMonthKey();
 
   // 確定売上・粗利：当月中に内定承諾へ初到達したもの（ダッシュボードと同じ定義）
