@@ -917,6 +917,15 @@ async function inlinePhaseSave(id, newPhase) {
   const p = DATA.find(x => x.id === id);
   if (!p) return;
   const oldPhase = p.phase;
+  let decisionDate = new Date().toISOString();
+  if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾') {
+    const input = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
+    if (input === null) return; // キャンセル時は変更しない
+    if (input) {
+      const d = new Date(input + 'T12:00:00');
+      if (!isNaN(d.getTime())) decisionDate = d.toISOString();
+    }
+  }
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   // 入社済みになったら自動的にステータスも終了_入社済みにする
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
@@ -926,9 +935,9 @@ async function inlinePhaseSave(id, newPhase) {
   p.phase = newPhase || null;
   if (payload.status) p.status = payload.status;
   if (newPhase && newPhase !== oldPhase) {
-    const { error: histError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: id, phase: newPhase });
+    const { error: histError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: id, phase: newPhase, changed_at: decisionDate });
     if (histError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + histError.message); }
-    else { PHASE_HISTORY.push({ pipeline_id: id, phase: newPhase, changed_at: new Date().toISOString() }); }
+    else { PHASE_HISTORY.push({ pipeline_id: id, phase: newPhase, changed_at: decisionDate }); }
   }
   if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾' && p.candidate_id) {
     const candUpdate = {
@@ -941,7 +950,7 @@ async function inlinePhaseSave(id, newPhase) {
     if (gp) {
       candUpdate.gross_profit = gp.amount;
       candUpdate.gross_profit_fee_rate = gp.rate;
-      candUpdate.gross_profit_calculated_at = new Date().toISOString();
+      candUpdate.gross_profit_calculated_at = decisionDate;
     }
     const { error: gpError } = await sb.from('candidates').update(candUpdate).eq('id', p.candidate_id);
     if (gpError) { alert('候補者データの自動更新に失敗しました: ' + gpError.message); }
@@ -958,6 +967,13 @@ function openModal(id) {
   if (!p) return;
   document.getElementById('modal-title').textContent = (p.job_name||'').replace(/\n/g,' ');
   document.getElementById('modal-sub').textContent = (p.candidates?.name||'-') + ' ／ ' + (p.companies?.name||'-') + ' ／ ' + (p.members?.display_name||'-');
+  const acceptRecord = getAcceptHistoryRecord(id);
+  const acceptHistoryHtml = acceptRecord
+    ? '<div class="detail-item detail-full"><div class="detail-label">内定承諾の決定日（修正可）</div><div style="display:flex;gap:8px;align-items:center">' +
+      '<input type="date" id="modal-decision-date" value="' + acceptRecord.changed_at.substring(0,10) + '" class="hire-date-input">' +
+      '<button class="icon-btn" style="border:1px solid #DEE7F7;border-radius:6px;padding:4px 10px" onclick="saveDecisionDate(\'' + id + '\')">更新</button>' +
+      '</div></div>'
+    : '';
   document.getElementById('modal-content').innerHTML = `
     <div class="detail-item"><div class="detail-label">フェーズ</div><div class="detail-value"><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></div></div>
     <div class="detail-item"><div class="detail-label">ステータス</div><div class="detail-value">${p.status||'-'}</div></div>
@@ -969,9 +985,35 @@ function openModal(id) {
     <div class="detail-item"><div class="detail-label">流入経路</div><div class="detail-value">${p.candidates?.source||'-'}</div></div>
     <div class="detail-item"><div class="detail-label">登録日</div><div class="detail-value">${fmtDate(p.created_at)}</div></div>
     ${p.memo ? `<div class="detail-item detail-full"><div class="detail-label">メモ</div><div class="memo-box">${p.memo}</div></div>` : ''}
+    ${acceptHistoryHtml}
   `;
   document.getElementById('modal-delete-btn').onclick = function() { closeModal(); deletePipelineRow(id); };
   document.getElementById('modal').classList.add('open');
+}
+
+function getAcceptHistoryRecord(pipelineId) {
+  const records = PHASE_HISTORY.filter(h => h.pipeline_id === pipelineId && h.phase === '内定承諾');
+  if (!records.length) return null;
+  return records.slice().sort((a,b) => a.changed_at.localeCompare(b.changed_at))[0];
+}
+
+async function saveDecisionDate(pipelineId) {
+  const dateVal = document.getElementById('modal-decision-date').value;
+  if (!dateVal) { alert('日付を入力してください'); return; }
+  const newDate = new Date(dateVal + 'T12:00:00').toISOString();
+  const record = getAcceptHistoryRecord(pipelineId);
+  if (!record) { alert('内定承諾の履歴が見つかりませんでした'); return; }
+  const { error } = await sb.from('pipeline_phase_history').update({ changed_at: newDate }).eq('pipeline_id', pipelineId).eq('phase', '内定承諾').eq('changed_at', record.changed_at);
+  if (error) { alert('決定日の更新に失敗しました: ' + error.message); return; }
+  record.changed_at = newDate;
+  const p = DATA.find(x => x.id === pipelineId);
+  if (p && p.candidate_id && p.candidates) {
+    const { error: candError } = await sb.from('candidates').update({ gross_profit_calculated_at: newDate }).eq('id', p.candidate_id);
+    if (!candError) p.candidates.gross_profit_calculated_at = newDate;
+  }
+  alert('決定日を更新しました');
+  renderMonthSummary();
+  openModal(pipelineId);
 }
 
 function closeModal() { document.getElementById('modal').classList.remove('open'); }

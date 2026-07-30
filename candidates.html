@@ -1129,7 +1129,28 @@ function openPipelineAdd(candidateId) {
   currentPipelineId = null;
   currentPipelineCandidateId = candidateId;
   currentPipelineOriginalPhase = null;
+  currentAcceptHistoryRecord = null;
   showPipelineModal(null);
+}
+
+let currentAcceptHistoryRecord = null;
+
+async function saveDecisionDate() {
+  const dateVal = document.getElementById('pf-decision-date').value;
+  if (!dateVal || !currentAcceptHistoryRecord) { alert('日付を入力してください'); return; }
+  const newDate = new Date(dateVal + 'T12:00:00').toISOString();
+  const { error } = await sb.from('pipeline_phase_history').update({ changed_at: newDate })
+    .eq('pipeline_id', currentPipelineId).eq('phase', '内定承諾').eq('changed_at', currentAcceptHistoryRecord.changed_at);
+  if (error) { alert('決定日の更新に失敗しました: ' + error.message); return; }
+  currentAcceptHistoryRecord.changed_at = newDate;
+  if (currentPipelineCandidateId) {
+    const { error: candError } = await sb.from('candidates').update({ gross_profit_calculated_at: newDate }).eq('id', currentPipelineCandidateId);
+    if (!candError) {
+      const cand = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
+      if (cand) cand.gross_profit_calculated_at = newDate;
+    }
+  }
+  alert('決定日を更新しました');
 }
 
 async function openPipelineEdit(pipelineId) {
@@ -1137,6 +1158,11 @@ async function openPipelineEdit(pipelineId) {
   var { data } = await sb.from('pipeline').select('*').eq('id', pipelineId).single();
   currentPipelineOriginalPhase = data ? data.phase : null;
   currentPipelineCandidateId = data ? data.candidate_id : null;
+  currentAcceptHistoryRecord = null;
+  if (data) {
+    const { data: history } = await sb.from('pipeline_phase_history').select('*').eq('pipeline_id', pipelineId).eq('phase', '内定承諾').order('changed_at', { ascending: true }).limit(1);
+    if (history && history.length) currentAcceptHistoryRecord = history[0];
+  }
   showPipelineModal(data);
 }
 
@@ -1155,6 +1181,7 @@ function showPipelineModal(p) {
     '<div class="form-group full"><label>求人URL</label><input id="pf-job-url" value="' + (p ? p.job_url||'' : '') + '" placeholder="https://..."></div>' +
     '<div class="form-group"><label>フェーズ</label><select id="pf-phase" onchange="autoSetJoinedStatus()"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="pf-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
+    (currentAcceptHistoryRecord ? '<div class="form-group"><label>内定承諾の決定日（修正可）</label><div style="display:flex;gap:8px;align-items:center"><input id="pf-decision-date" type="date" value="' + currentAcceptHistoryRecord.changed_at.substring(0,10) + '"><button type="button" onclick="saveDecisionDate()" style="padding:0 12px;height:40px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap">更新</button></div></div>' : '') +
     '<div class="form-group"><label>NextAction日</label><input id="pf-next-action-day" type="date" value="' + (p ? p.next_action_day||'' : '') + '"></div>' +
     '<div class="form-group"><label>アクション内容</label><input id="pf-next-action-note" value="' + (p ? (p.next_action_note||'').replace(/"/g,'&quot;') : '') + '" placeholder="例：面接日程の調整連絡"></div>' +
     '<div class="form-group"><label>推薦日</label><input id="pf-recommended-at" type="date" value="' + (p ? p.recommended_at||'' : '') + '"></div>' +
@@ -1201,6 +1228,17 @@ function autoSetJoinedStatus() {
 async function savePipeline() {
   var jobName = document.getElementById('pf-job-name').value.trim();
   if (!jobName) { alert('求人名を入力してください'); return; }
+  var newPhaseValue = document.getElementById('pf-phase').value;
+  var willBecomeAccepted = newPhaseValue === '内定承諾' && newPhaseValue !== currentPipelineOriginalPhase;
+  var decisionDate = new Date().toISOString();
+  if (willBecomeAccepted) {
+    var dateInput = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
+    if (dateInput === null) return; // キャンセル時は保存しない
+    if (dateInput) {
+      var dObj = new Date(dateInput + 'T12:00:00');
+      if (!isNaN(dObj.getTime())) decisionDate = dObj.toISOString();
+    }
+  }
   var payload = {
     job_name: jobName,
     company_id: document.getElementById('pf-company-id').value || null,
@@ -1232,7 +1270,7 @@ async function savePipeline() {
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   if (phaseChanged && savedPipelineId) {
-    const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase });
+    const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase, changed_at: decisionDate });
     if (historyError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + historyError.message); }
   }
   if (phaseChanged && payload.phase === '内定承諾') {
@@ -1248,7 +1286,7 @@ async function savePipeline() {
       if (gp) {
         candUpdate.gross_profit = gp.amount;
         candUpdate.gross_profit_fee_rate = gp.rate;
-        candUpdate.gross_profit_calculated_at = new Date().toISOString();
+        candUpdate.gross_profit_calculated_at = decisionDate;
       }
       const { error: gpError } = await sb.from('candidates').update(candUpdate).eq('id', currentPipelineCandidateId);
       if (!gpError) { Object.assign(cand, candUpdate); }
