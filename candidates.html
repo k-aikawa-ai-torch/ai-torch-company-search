@@ -191,7 +191,8 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         <option>ワークライフバランス</option><option>技術力・スキルアップ</option><option>安定性</option>
         <option>社風・人間関係</option><option>事業内容への共感</option><option>マネジメント経験</option>
       </select>
-      <select id="job-filter" onchange="render()">
+      <div class="tag-filters" id="job-filter-tags" style="display:inline-flex;gap:4px;flex-wrap:wrap"></div>
+      <select id="job-filter" style="display:none">
         <option value="">全職種</option>
         <option>CxO</option><option>SRE/クラウドエンジニア</option><option>開発エンジニア</option>
         <option>AI/DS</option><option>デザイナー</option><option>インフラエンジニア</option>
@@ -307,7 +308,8 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <div class="form-grid" style="margin-bottom:20px">
       <div class="form-group">
         <label>経路</label>
-        <select id="fr-source">
+        <input id="fr-source" list="fr-source-options" placeholder="経路を選択、または新しく入力">
+        <datalist id="fr-source-options">
           <option>スカウト（ビズリーチ）</option>
           <option>レバテックダイレクト</option>
           <option>スカウト（LinkedIn）</option>
@@ -317,7 +319,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
           <option>リファラル（社員経由）</option>
           <option>自社HP</option>
           <option>アライアンス</option>
-        </select>
+        </datalist>
       </div>
       <div class="form-group">
         <label>手数料率（%）</label>
@@ -362,6 +364,7 @@ marked.setOptions({ breaks: true });
 let DATA = [];
 let MEMBERS = [];
 let FILE_FLAGS = new Set();
+let activeJobFilterTags = new Set();
 let MEDIA_FEE_RATES = [];
 let ALL_COMPANIES = [];
 let TEMPLATES = [];
@@ -379,7 +382,7 @@ const PHASE_LIST = ['返信来た！','初回面談DONE','求人提案なう','�
 const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
 const STATUS_LIST = ['進行中','将来的に声かけ予定_再アプローチ','終了_他社に移行','終了_自社と合わない','終了_転職延期','終了_承諾済み（フォローしようね）'];
 const SOURCE_LIST = ['スカウト（ビズリーチ）','レバテックダイレクト','スカウト（LinkedIn）','スカウト（AMBI）','スカウト（YOUTRUST）','リファラル（求職者紹介）','リファラル（社員経由）','自社HP','アライアンス'];
-const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%'];
+const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%','10%'];
 const AXIS_LIST = ['年収アップ','裁量権','事業成長性','ワークライフバランス','技術力・スキルアップ','安定性','社風・人間関係','事業内容への共感','マネジメント経験'];
 const JOB_TYPE_LIST = ['CxO','SRE/クラウドエンジニア','開発エンジニア','AI/DS','デザイナー','インフラエンジニア','コンサル/PM','PdM','QA','マーケター','WEBディレ','人事','Bizdev','営業','その他'];
 const MOTIVATION_LIST = ['高（すぐ動く）','中（いいところがあれば）','低（完全な情報収集）'];
@@ -424,6 +427,7 @@ async function loadData() {
   const sel = document.getElementById('source-filter');
   sel.innerHTML = '<option value="">全経路</option>';
   sources.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=cleanSource(s); sel.appendChild(o); });
+  document.getElementById('job-filter-tags').innerHTML = JOB_TYPE_LIST.map(j => '<span class="jt-tag" data-job="' + j + '" onclick="toggleJobFilterTag(this)">' + j + '</span>').join('');
   loadFileFlags();
   const me = MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
   if (me) {
@@ -466,7 +470,7 @@ function today() { return new Date().toISOString().substring(0,10); }
 let sort1Dir = -1;
 let sort2Dir = -1;
 function cleanSource(s) {
-  return (s || '').replace(/^[（(]+/, '').trim();
+  return (s || '').trim().replace(/^[（(]+/, '').trim();
 }
 
 function getCurrentFeeRate(source) {
@@ -486,9 +490,17 @@ function calcGrossProfit(revenueYomi, source) {
 function toggleAdvFilters() {
   document.getElementById('filters-advanced').classList.toggle('show');
 }
+function toggleJobFilterTag(el) {
+  const j = el.dataset.job;
+  activeJobFilterTags.has(j) ? activeJobFilterTags.delete(j) : activeJobFilterTags.add(j);
+  el.classList.toggle('on');
+  render();
+}
+
 function resetAdvFilters() {
   ['cs-min','cs-max','ds-min','ds-max','ej-from','ej-to','reg-from','reg-to','na-from','na-to'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('job-filter').value = '';
+  activeJobFilterTags.clear();
+  document.querySelectorAll('#job-filter-tags .jt-tag').forEach(el => el.classList.remove('on'));
   document.getElementById('attach-filter').value = '';
   render();
 }
@@ -539,7 +551,6 @@ function render() {
   const yomiFilter = document.getElementById('yomi-filter').value;
   const motivationFilter = document.getElementById('motivation-filter').value;
   const axisFilter = document.getElementById('axis-filter').value;
-  const jobFilter = document.getElementById('job-filter').value;
   const attachFilter = document.getElementById('attach-filter').value;
   const csMin = document.getElementById('cs-min').value ? parseInt(document.getElementById('cs-min').value) * 10000 : null;
   const csMax = document.getElementById('cs-max').value ? parseInt(document.getElementById('cs-max').value) * 10000 : null;
@@ -566,7 +577,12 @@ function render() {
     if (yomiFilter && c.decision_yomi !== yomiFilter) return false;
     if (motivationFilter && c.motivation_level !== motivationFilter) return false;
     if (axisFilter && c.top_priority_axis !== axisFilter) return false;
-    if (jobFilter && !jobTypeArray(c).includes(jobFilter)) return false;
+    if (activeJobFilterTags.size) {
+      const cJobs = jobTypeArray(c);
+      let anyMatch = false;
+      for (const j of activeJobFilterTags) { if (cJobs.includes(j)) { anyMatch = true; break; } }
+      if (!anyMatch) return false;
+    }
     if (attachFilter === 'yes' && !FILE_FLAGS.has(c.id)) return false;
     if (attachFilter === 'no' && FILE_FLAGS.has(c.id)) return false;
     if (csMin !== null && (c.current_salary||0) < csMin) return false;
@@ -759,9 +775,12 @@ function renderEditForm(c) {
     '<div class="form-group"><label>現年収（円）</label><input id="f-current-salary" type="number" value="' + (c ? c.current_salary||'' : '') + '"></div>' +
     '<div class="form-group"><label>売上見込み（円）</label><input id="f-revenue-forecast" type="number" value="' + (c ? c.revenue_forecast||'' : '') + '" oninput="updateRevenueYomiPreview()"></div>' +
     '<div class="form-group"><label>売上ヨミ金額（自動計算）</label><div id="f-revenue-yomi-preview" style="height:40px;display:flex;align-items:center;padding:0 14px;border:1px solid #DEE7F7;border-radius:4px;background:#f5f5f0;color:#666">-</div></div>' +
-    '<div class="form-group"><label>粗利（確定額）</label><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:40px;display:flex;align-items:center;padding:0 14px;border:1px solid #DEE7F7;border-radius:4px;background:#f5f5f0;color:#666">' +
-      (c && c.gross_profit != null ? fmtSalary(c.gross_profit) + '（料率' + Math.round((c.gross_profit_fee_rate||0)*100) + '%・' + (c.gross_profit_calculated_at||'').substring(0,10) + '時点）' : '未確定（内定承諾になると自動計算されます）') +
-      '</div>' + (c ? '<button type="button" onclick="recalcGrossProfit(\'' + c.id + '\')" style="padding:0 12px;height:40px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap">🔄 再計算</button>' : '') +
+    '<div class="form-group"><label>粗利（確定額・手動編集可）</label><div style="display:flex;align-items:center;gap:8px">' +
+      '<input id="f-gross-profit" type="number" value="' + (c && c.gross_profit != null ? c.gross_profit : '') + '" style="flex:1">' +
+      (c ? '<button type="button" onclick="recalcGrossProfit(\'' + c.id + '\')" style="padding:0 12px;height:40px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap">🔄 再計算</button>' : '') +
+    '</div>' +
+    '<div style="font-size:11px;color:#999;margin-top:4px">' +
+      (c && c.gross_profit != null ? '料率' + Math.round((c.gross_profit_fee_rate||0)*100) + '%・' + (c.gross_profit_calculated_at||'').substring(0,10) + '時点で計算（手動変更可）' : '未確定（内定承諾になると自動計算されます。先に手動入力も可）') +
     '</div></div>' +
     '<div class="form-group"><label>決定ヨミ</label><select id="f-decision-yomi" onchange="updateRevenueYomiPreview()"><option value="">未設定</option>' + yomiOptions + '</select></div>' +
     '<div class="form-group"><label>温度感/活動状況</label><select id="f-motivation-level"><option value="">未設定</option>' + motivationOptions + '</select></div>' +
@@ -965,6 +984,7 @@ function updateRevenueYomiPreview() {
 
 function openFeeRateModal() {
   document.getElementById('fr-effective-from').value = today();
+  document.getElementById('fr-source').value = '';
   renderFeeRateLists();
   document.getElementById('fee-rate-modal').classList.add('open');
 }
@@ -999,10 +1019,10 @@ function renderFeeRateLists() {
 }
 
 async function addFeeRate() {
-  const source = document.getElementById('fr-source').value;
+  const source = document.getElementById('fr-source').value.trim();
   const rateInput = document.getElementById('fr-rate').value;
   const effectiveFrom = document.getElementById('fr-effective-from').value;
-  if (!rateInput || !effectiveFrom) { alert('手数料率と適用開始日を入力してください'); return; }
+  if (!source || !rateInput || !effectiveFrom) { alert('経路・手数料率・適用開始日を入力してください'); return; }
   const rate = parseFloat(rateInput) / 100;
   const { error } = await sb.from('media_fee_rates').insert({ source: source, fee_rate: rate, effective_from: effectiveFrom });
   if (error) { alert('追加に失敗しました: ' + error.message); return; }
@@ -1054,6 +1074,7 @@ async function saveCandidate() {
     current_company: document.getElementById('f-current-company').value || null,
     desired_salary: document.getElementById('f-desired-salary').value ? parseInt(document.getElementById('f-desired-salary').value) : null,
     current_salary: document.getElementById('f-current-salary').value ? parseInt(document.getElementById('f-current-salary').value) : null,
+    gross_profit: document.getElementById('f-gross-profit').value ? parseInt(document.getElementById('f-gross-profit').value) : null,
     revenue_forecast: document.getElementById('f-revenue-forecast').value ? parseInt(document.getElementById('f-revenue-forecast').value) : null,
     revenue_yomi: calcRevenueYomi(
       document.getElementById('f-revenue-forecast').value ? parseInt(document.getElementById('f-revenue-forecast').value) : null,
@@ -1118,8 +1139,8 @@ async function openPipelineEdit(pipelineId) {
 }
 
 function showPipelineModal(p) {
-  var phaseOptions = PIPELINE_PHASE_LIST.map(function(ph) { return '<option' + (p && p.phase === ph ? ' selected' : '') + '>' + ph + '</option>'; }).join('');
-  var statusOptions = PIPELINE_STATUS_LIST.map(function(s) { return '<option' + (p && p.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+  var phaseOptions = PIPELINE_PHASE_LIST.map(function(ph) { return '<option' + ((p ? p.phase === ph : ph === '一次面接') ? ' selected' : '') + '>' + ph + '</option>'; }).join('');
+  var statusOptions = PIPELINE_STATUS_LIST.map(function(s) { return '<option' + ((p ? p.status === s : s === '進行中') ? ' selected' : '') + '>' + s + '</option>'; }).join('');
   document.getElementById('pipeline-modal-title').textContent = p ? '提案求人を編集' : '提案求人を追加';
   document.getElementById('pipeline-modal-content').innerHTML =
     '<div class="form-grid">' +
@@ -1146,10 +1167,24 @@ function showPipelineModal(p) {
   document.getElementById('pipeline-modal').classList.add('open');
 }
 
-function syncCompanyId() {
+async function syncCompanyId() {
   const name = document.getElementById('pf-company-name').value.trim();
-  const match = ALL_COMPANIES.find(function(c) { return c.name === name; });
-  document.getElementById('pf-company-id').value = match ? match.id : '';
+  if (!name) { document.getElementById('pf-company-id').value = ''; return; }
+  let match = ALL_COMPANIES.find(function(c) { return c.name === name; });
+  if (!match) {
+    if (!confirm('「' + name + '」は企業リストに存在しません。新規企業として登録しますか？')) {
+      document.getElementById('pf-company-name').value = '';
+      document.getElementById('pf-company-id').value = '';
+      return;
+    }
+    const { data, error } = await sb.from('companies').insert({ name: name }).select().single();
+    if (error) { alert('企業の新規登録に失敗しました: ' + error.message); return; }
+    match = data;
+    ALL_COMPANIES.push(match);
+    const dl = document.getElementById('company-options');
+    if (dl) dl.innerHTML += '<option value="' + match.name.replace(/"/g,'&quot;') + '">';
+  }
+  document.getElementById('pf-company-id').value = match.id;
 }
 
 function autoSetJoinedStatus() {

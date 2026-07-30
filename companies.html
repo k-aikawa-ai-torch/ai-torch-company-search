@@ -585,11 +585,7 @@ function render() {
     if (minBrand && (c.score_brand === null || c.score_brand < minBrand)) return false;
     if (minCulture && (c.score_culture === null || c.score_culture < minCulture)) return false;
     const boolTags = Array.from(activeTags).filter(k => k !== 'stopped');
-    if (boolTags.length) {
-      let anyMatch = false;
-      for (const k of boolTags) { if (c[k]) { anyMatch = true; break; } }
-      if (!anyMatch) return false;
-    }
+    for (const k of boolTags) { if (!c[k]) return false; }
     if (q && !(c.name||'').toLowerCase().includes(q) && !(c.tech||'').toLowerCase().includes(q) && !(c.roles||'').toLowerCase().includes(q) && !(c.industry||'').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -642,7 +638,7 @@ function render() {
         ${resolveMember(c) ? `<span class="pill" style="color:#6B7A99">👤 ${resolveMember(c)}</span>` : ''}
       </div>
       <div class="scores" onclick="toggleCard(this)">
-        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社風',c.score_culture],['社会貢献',c.score_social]].map(([l,v]) =>
+        ${[['年収',c.score_salary],['WLB',c.score_wlb],['技術力',c.score_tech],['裁量',c.score_autonomy],['社風',c.score_culture],['社会貢献',c.score_social],['ネームバリュー',c.score_brand]].map(([l,v]) =>
           `<div class="score-item"><span class="score-label">${l}</span>${scoreBar(v)}</div>`
         ).join('')}
       </div>

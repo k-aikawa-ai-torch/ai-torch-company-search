@@ -468,7 +468,7 @@ function getPhaseClass(p) {
 
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
-function cleanSource(s) { return (s || '').replace(/^[（(]+/, '').trim(); }
+function cleanSource(s) { return (s || '').trim().replace(/^[（(]+/, '').trim(); }
 function today() { return new Date().toISOString().substring(0,10); }
 function dayDiff(d) {
   if (!d) return null;
