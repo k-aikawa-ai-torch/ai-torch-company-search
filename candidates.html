@@ -954,8 +954,8 @@ async function deleteMemoTemplate() {
 async function recalcGrossProfit(candidateId) {
   const c = DATA.find(function(x) { return x.id === candidateId; });
   if (!c) { alert('候補者情報が取得できませんでした。'); return; }
-  const gp = calcGrossProfit(c.revenue_yomi, c.source);
-  if (!gp) { alert('売上ヨミ金額が未設定のため計算できません。'); return; }
+  const gp = calcGrossProfit(c.revenue_forecast, c.source);
+  if (!gp) { alert('売上見込み金額が未設定のため計算できません。'); return; }
   if (!confirm('現在有効な料率（' + Math.round(gp.rate*100) + '%）で粗利を再計算し、' + fmtSalary(gp.amount) + ' に上書きします。よろしいですか？')) return;
   const { error } = await sb.from('candidates').update({
     gross_profit: gp.amount,
@@ -1244,7 +1244,7 @@ async function savePipeline() {
         decision_yomi: '100%',
         revenue_yomi: cand.revenue_forecast || null,
       };
-      const gp = calcGrossProfit(candUpdate.revenue_yomi, cand.source);
+      const gp = calcGrossProfit(cand.revenue_forecast, cand.source);
       if (gp) {
         candUpdate.gross_profit = gp.amount;
         candUpdate.gross_profit_fee_rate = gp.rate;

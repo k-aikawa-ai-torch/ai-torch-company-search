@@ -927,7 +927,7 @@ async function inlinePhaseSave(id, newPhase) {
       decision_yomi: '100%',
       revenue_yomi: p.candidates?.revenue_forecast || null,
     };
-    const gp = calcGrossProfit(candUpdate.revenue_yomi, p.candidates?.source);
+    const gp = calcGrossProfit(p.candidates?.revenue_forecast, p.candidates?.source);
     if (gp) {
       candUpdate.gross_profit = gp.amount;
       candUpdate.gross_profit_fee_rate = gp.rate;
