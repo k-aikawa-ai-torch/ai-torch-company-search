@@ -392,7 +392,7 @@ function jobTypeArray(c) {
   return (c.job_type || '').split(/[,、]/).map(s => s.trim()).filter(Boolean);
 }
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
-const PIPELINE_STATUS_LIST = ['進行中','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
+const PIPELINE_STATUS_LIST = ['進行中','終了_内定承諾','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;
@@ -1193,6 +1193,8 @@ function autoSetJoinedStatus() {
   const phase = document.getElementById('pf-phase').value;
   if (phase === '入社済み') {
     document.getElementById('pf-status').value = '終了_入社済み';
+  } else if (phase === '内定承諾') {
+    document.getElementById('pf-status').value = '終了_内定承諾';
   }
 }
 
@@ -1204,7 +1206,9 @@ async function savePipeline() {
     company_id: document.getElementById('pf-company-id').value || null,
     job_url: document.getElementById('pf-job-url').value || null,
     phase: document.getElementById('pf-phase').value || null,
-    status: document.getElementById('pf-phase').value === '入社済み' ? '終了_入社済み' : (document.getElementById('pf-status').value || null),
+    status: document.getElementById('pf-phase').value === '入社済み' ? '終了_入社済み'
+      : document.getElementById('pf-phase').value === '内定承諾' ? '終了_内定承諾'
+      : (document.getElementById('pf-status').value || null),
     next_action_day: document.getElementById('pf-next-action-day').value || null,
     next_action_note: document.getElementById('pf-next-action-note').value || null,
     recommended_at: document.getElementById('pf-recommended-at').value || null,
@@ -1234,19 +1238,20 @@ async function savePipeline() {
   if (phaseChanged && payload.phase === '内定承諾') {
     const cand = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
     if (cand) {
-      const gp = calcGrossProfit(cand.revenue_yomi, cand.source);
+      const candUpdate = {
+        phase: '内定承諾歓喜',
+        status: '終了_承諾済み（フォローしようね）',
+        decision_yomi: '100%',
+        revenue_yomi: cand.revenue_forecast || null,
+      };
+      const gp = calcGrossProfit(candUpdate.revenue_yomi, cand.source);
       if (gp) {
-        const { error: gpError } = await sb.from('candidates').update({
-          gross_profit: gp.amount,
-          gross_profit_fee_rate: gp.rate,
-          gross_profit_calculated_at: new Date().toISOString(),
-        }).eq('id', currentPipelineCandidateId);
-        if (!gpError) {
-          cand.gross_profit = gp.amount;
-          cand.gross_profit_fee_rate = gp.rate;
-          cand.gross_profit_calculated_at = new Date().toISOString();
-        }
+        candUpdate.gross_profit = gp.amount;
+        candUpdate.gross_profit_fee_rate = gp.rate;
+        candUpdate.gross_profit_calculated_at = new Date().toISOString();
       }
+      const { error: gpError } = await sb.from('candidates').update(candUpdate).eq('id', currentPipelineCandidateId);
+      if (!gpError) { Object.assign(cand, candUpdate); }
     }
   }
   document.getElementById('pipeline-save-msg').textContent = '✅ 保存しました';

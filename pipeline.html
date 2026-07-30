@@ -276,7 +276,7 @@ let sort1Dir = 1;
 let sort2Dir = 1;
 
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
-const PIPELINE_STATUS_LIST = ['進行中','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
+const PIPELINE_STATUS_LIST = ['進行中','終了_内定承諾','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
 const ACCEPT_PHASES = ['内定承諾','入社待ち','入社済み'];
 const FORECAST_ELIGIBLE_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
 
@@ -901,6 +901,7 @@ async function inlinePhaseSave(id, newPhase) {
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   // 入社済みになったら自動的にステータスも終了_入社済みにする
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
+  else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
   const { error } = await sb.from('pipeline').update(payload).eq('id', id);
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   p.phase = newPhase || null;
@@ -911,20 +912,21 @@ async function inlinePhaseSave(id, newPhase) {
     else { PHASE_HISTORY.push({ pipeline_id: id, phase: newPhase, changed_at: new Date().toISOString() }); }
   }
   if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾' && p.candidate_id) {
-    const gp = calcGrossProfit(p.candidates?.revenue_yomi, p.candidates?.source);
+    const candUpdate = {
+      phase: '内定承諾歓喜',
+      status: '終了_承諾済み（フォローしようね）',
+      decision_yomi: '100%',
+      revenue_yomi: p.candidates?.revenue_forecast || null,
+    };
+    const gp = calcGrossProfit(candUpdate.revenue_yomi, p.candidates?.source);
     if (gp) {
-      const { error: gpError } = await sb.from('candidates').update({
-        gross_profit: gp.amount,
-        gross_profit_fee_rate: gp.rate,
-        gross_profit_calculated_at: new Date().toISOString(),
-      }).eq('id', p.candidate_id);
-      if (gpError) { alert('粗利の自動計算に失敗しました: ' + gpError.message); }
-      else if (p.candidates) {
-        p.candidates.gross_profit = gp.amount;
-        p.candidates.gross_profit_fee_rate = gp.rate;
-        p.candidates.gross_profit_calculated_at = new Date().toISOString();
-      }
+      candUpdate.gross_profit = gp.amount;
+      candUpdate.gross_profit_fee_rate = gp.rate;
+      candUpdate.gross_profit_calculated_at = new Date().toISOString();
     }
+    const { error: gpError } = await sb.from('candidates').update(candUpdate).eq('id', p.candidate_id);
+    if (gpError) { alert('候補者データの自動更新に失敗しました: ' + gpError.message); }
+    else if (p.candidates) { Object.assign(p.candidates, candUpdate); }
   }
   renderFunnel();
   renderMonthSummary();
