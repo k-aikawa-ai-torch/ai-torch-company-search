@@ -29,6 +29,8 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .tag.on{background:#14213D;color:#fff;border-color:#14213D}
 #status-phase-filters.show{display:flex !important}
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.two-col-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media (max-width:900px){.two-col-row{grid-template-columns:1fr}}
 .summary-card{background:#fff;border:1px solid #DEE7F7;border-radius:10px;padding:12px 16px}
 .summary-label{font-size:11px;color:#6B7A99;margin-bottom:4px}
 .summary-value{font-size:20px;font-weight:600;color:#14213D}
@@ -139,11 +141,16 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       </div>
     </div>
   <div class="main">
-    <div class="section-title">今月のまとめ</div>
-    <div class="summary-grid" id="month-summary"></div>
-
-    <div class="section-title">日別アクションリスト</div>
-    <div class="action-list-wrap" id="action-list"></div>
+    <div class="two-col-row">
+      <div class="two-col-item">
+        <div class="section-title">今月のまとめ</div>
+        <div class="summary-grid" id="month-summary"></div>
+      </div>
+      <div class="two-col-item">
+        <div class="section-title">日別アクションリスト</div>
+        <div class="action-list-wrap" id="action-list"></div>
+      </div>
+    </div>
 
     <div class="funnel-row" id="funnel"></div>
     <div class="filters">
@@ -246,6 +253,9 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <h2 id="modal-title"></h2>
     <div class="modal-subtitle" id="modal-sub"></div>
     <div class="detail-grid" id="modal-content"></div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="icon-btn" id="modal-delete-btn" style="color:#b3261e;border:1px solid #f0d0d0;border-radius:6px;padding:6px 14px">🗑️ このパイプラインを削除</button>
+    </div>
   </div>
 </div>
 
@@ -278,7 +288,7 @@ let sort2Dir = 1;
 const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_内定承諾','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
 const ACCEPT_PHASES = ['内定承諾','入社待ち','入社済み'];
-const FORECAST_ELIGIBLE_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const FORECAST_ELIGIBLE_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定'];
 
 async function doLogin() {
   const email = document.getElementById('email-input').value;
@@ -960,6 +970,7 @@ function openModal(id) {
     <div class="detail-item"><div class="detail-label">登録日</div><div class="detail-value">${fmtDate(p.created_at)}</div></div>
     ${p.memo ? `<div class="detail-item detail-full"><div class="detail-label">メモ</div><div class="memo-box">${p.memo}</div></div>` : ''}
   `;
+  document.getElementById('modal-delete-btn').onclick = function() { closeModal(); deletePipelineRow(id); };
   document.getElementById('modal').classList.add('open');
 }
 
