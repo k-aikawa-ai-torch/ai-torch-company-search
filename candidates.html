@@ -1236,11 +1236,16 @@ async function savePipeline() {
     if (cand) {
       const gp = calcGrossProfit(cand.revenue_yomi, cand.source);
       if (gp) {
-        await sb.from('candidates').update({
+        const { error: gpError } = await sb.from('candidates').update({
           gross_profit: gp.amount,
           gross_profit_fee_rate: gp.rate,
           gross_profit_calculated_at: new Date().toISOString(),
         }).eq('id', currentPipelineCandidateId);
+        if (!gpError) {
+          cand.gross_profit = gp.amount;
+          cand.gross_profit_fee_rate = gp.rate;
+          cand.gross_profit_calculated_at = new Date().toISOString();
+        }
       }
     }
   }
