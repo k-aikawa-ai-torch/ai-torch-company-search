@@ -266,6 +266,7 @@ let ALL_MEMBERS = [];
 let ALL_COMPANIES = [];
 let PHASE_HISTORY = [];
 let PIPELINE_VIEWS = [];
+let MEDIA_FEE_RATES = [];
 let ME = null;
 let CURRENT_USER_EMAIL = null;
 let activeStatusTags = new Set(['進行中']);
@@ -330,7 +331,7 @@ async function fetchAllRange(table, select) {
 }
 
 async function loadData() {
-  const [{ data, error }, membersRes, companiesRes, phaseHistory, viewsRes] = await Promise.all([
+  const [{ data, error }, membersRes, companiesRes, phaseHistory, viewsRes, feeRatesRes] = await Promise.all([
     sb.from('pipeline')
       .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast,revenue_yomi,decision_yomi,gross_profit,gross_profit_calculated_at,status), companies(name)')
       .order('created_at', { ascending: false }),
@@ -338,6 +339,7 @@ async function loadData() {
     sb.from('companies').select('id,name'),
     fetchAllRange('pipeline_phase_history', '*'),
     sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name'),
+    sb.from('media_fee_rates').select('*'),
   ]);
   if (error) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="13" class="loading">読み込み失敗</td></tr>';
@@ -348,6 +350,7 @@ async function loadData() {
   ALL_COMPANIES = companiesRes.data || [];
   PHASE_HISTORY = phaseHistory || [];
   PIPELINE_VIEWS = viewsRes.data || [];
+  MEDIA_FEE_RATES = feeRatesRes.data || [];
   if (viewsRes.error) console.error('pipeline_views読み込みエラー:', viewsRes.error);
   document.getElementById('header-count').textContent = DATA.length + '件';
   ME = ALL_MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
@@ -469,6 +472,21 @@ function getPhaseClass(p) {
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
 function cleanSource(s) { return (s || '').trim().replace(/^[（(]+/, '').trim(); }
+
+function getCurrentFeeRate(source) {
+  const cleaned = cleanSource(source);
+  const todayStr = today();
+  const candidates = MEDIA_FEE_RATES.filter(r => r.source === cleaned && r.effective_from <= todayStr);
+  if (!candidates.length) return 0;
+  candidates.sort((a,b) => b.effective_from.localeCompare(a.effective_from));
+  return candidates[0].fee_rate;
+}
+
+function calcGrossProfit(revenueYomi, source) {
+  if (revenueYomi === null || revenueYomi === undefined) return null;
+  const rate = getCurrentFeeRate(source);
+  return { amount: Math.round(revenueYomi * (1 - rate)), rate: rate };
+}
 function today() { return new Date().toISOString().substring(0,10); }
 function dayDiff(d) {
   if (!d) return null;
@@ -891,6 +909,22 @@ async function inlinePhaseSave(id, newPhase) {
     const { error: histError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: id, phase: newPhase });
     if (histError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + histError.message); }
     else { PHASE_HISTORY.push({ pipeline_id: id, phase: newPhase, changed_at: new Date().toISOString() }); }
+  }
+  if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾' && p.candidate_id) {
+    const gp = calcGrossProfit(p.candidates?.revenue_yomi, p.candidates?.source);
+    if (gp) {
+      const { error: gpError } = await sb.from('candidates').update({
+        gross_profit: gp.amount,
+        gross_profit_fee_rate: gp.rate,
+        gross_profit_calculated_at: new Date().toISOString(),
+      }).eq('id', p.candidate_id);
+      if (gpError) { alert('粗利の自動計算に失敗しました: ' + gpError.message); }
+      else if (p.candidates) {
+        p.candidates.gross_profit = gp.amount;
+        p.candidates.gross_profit_fee_rate = gp.rate;
+        p.candidates.gross_profit_calculated_at = new Date().toISOString();
+      }
+    }
   }
   renderFunnel();
   renderMonthSummary();
