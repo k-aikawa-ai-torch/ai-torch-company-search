@@ -1222,7 +1222,18 @@ function autoSetJoinedStatus() {
     document.getElementById('pf-status').value = '終了_入社済み';
   } else if (phase === '内定承諾') {
     document.getElementById('pf-status').value = '終了_内定承諾';
+  } else if (currentPipelineOriginalPhase === '内定承諾' || currentPipelineOriginalPhase === '入社済み') {
+    document.getElementById('pf-status').value = '進行中';
   }
+}
+
+function pipelinePhaseToCandidatePhase(pipelinePhase) {
+  var map = {
+    '内定': '内定KITAAA',
+    '最終面接': '選考なう', '二次～面接': '選考なう', '一次面接': '選考なう', 'カジュアル面談': '選考なう', '書類選考': '選考なう',
+    '応募承諾': '求人提案なう', '提案中': '求人提案なう', '未提案': '求人提案なう',
+  };
+  return map[pipelinePhase] || '選考なう';
 }
 
 async function savePipeline() {
@@ -1233,6 +1244,7 @@ async function savePipeline() {
   var willRevertFromAccepted = currentPipelineOriginalPhase === '内定承諾' && newPhaseValue !== '内定承諾';
   var decisionDate = new Date().toISOString();
   var theoreticalSalaryInput = null;
+  var hireDateInput = null;
   if (willBecomeAccepted) {
     var dateInput = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
     if (dateInput === null) return; // キャンセル時は保存しない
@@ -1242,6 +1254,8 @@ async function savePipeline() {
     }
     var salaryInput = prompt('理論年収を入力してください（未入力なら売上見込みを基準に設定します）', '');
     if (salaryInput && !isNaN(parseFloat(salaryInput))) theoreticalSalaryInput = parseFloat(salaryInput);
+    var hireInput = prompt('入社日が決まっていれば入力してください（未定なら空欄でOK・後から入力もできます）', '');
+    if (hireInput) hireDateInput = hireInput;
   }
   if (willRevertFromAccepted) {
     if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) return;
@@ -1260,6 +1274,7 @@ async function savePipeline() {
     memo: document.getElementById('pf-memo').value || null,
     updated_at: new Date().toISOString(),
   };
+  if (hireDateInput) payload.hire_date = hireDateInput;
   var error;
   var savedPipelineId = currentPipelineId;
   var phaseChanged = payload.phase && payload.phase !== currentPipelineOriginalPhase;
@@ -1283,7 +1298,11 @@ async function savePipeline() {
   if (willRevertFromAccepted && savedPipelineId && currentPipelineCandidateId) {
     const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', savedPipelineId).eq('phase', '内定承諾');
     if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); }
-    const resetPayload = { gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null, decision_yomi: null, revenue_yomi: null, theoretical_salary: null };
+    const resetPayload = {
+      gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null,
+      decision_yomi: null, revenue_yomi: null, theoretical_salary: null,
+      phase: pipelinePhaseToCandidatePhase(newPhaseValue), status: '進行中',
+    };
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', currentPipelineCandidateId);
     if (!resetError) {
       const candForReset = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });

@@ -913,12 +913,22 @@ async function inlineSave(id, field, value) {
   renderActionList();
 }
 
+function pipelinePhaseToCandidatePhase(pipelinePhase) {
+  const map = {
+    '内定': '内定KITAAA',
+    '最終面接': '選考なう', '二次～面接': '選考なう', '一次面接': '選考なう', 'カジュアル面談': '選考なう', '書類選考': '選考なう',
+    '応募承諾': '求人提案なう', '提案中': '求人提案なう', '未提案': '求人提案なう',
+  };
+  return map[pipelinePhase] || '選考なう';
+}
+
 async function inlinePhaseSave(id, newPhase) {
   const p = DATA.find(x => x.id === id);
   if (!p) return;
   const oldPhase = p.phase;
   let decisionDate = new Date().toISOString();
   let theoreticalSalaryInput = null;
+  let hireDateInput = null;
   if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾') {
     const input = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
     if (input === null) return; // キャンセル時は変更しない
@@ -928,24 +938,33 @@ async function inlinePhaseSave(id, newPhase) {
     }
     const salaryInput = prompt('理論年収を入力してください（未入力なら売上見込みを基準に設定します）', '');
     if (salaryInput && !isNaN(parseFloat(salaryInput))) theoreticalSalaryInput = parseFloat(salaryInput);
+    const hireInput = prompt('入社日が決まっていれば入力してください（未定なら空欄でOK・後から入力もできます）', '');
+    if (hireInput) hireDateInput = hireInput;
   }
   // 内定承諾から他フェーズへ戻した場合、誤登録の取り消しとして決定履歴・粗利等をリセットする
   if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && p.candidate_id) {
-    if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) return;
+    if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利・フェーズ/ステータスの記録も登録前の状態に戻りますがよろしいですか？')) return;
     const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', id).eq('phase', '内定承諾');
     if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
     PHASE_HISTORY = PHASE_HISTORY.filter(h => !(h.pipeline_id === id && h.phase === '内定承諾'));
-    const resetPayload = { gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null, decision_yomi: null, revenue_yomi: null, theoretical_salary: null };
+    const resetPayload = {
+      gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null,
+      decision_yomi: null, revenue_yomi: null, theoretical_salary: null,
+      phase: pipelinePhaseToCandidatePhase(newPhase), status: '進行中',
+    };
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', p.candidate_id);
     if (!resetError && p.candidates) Object.assign(p.candidates, resetPayload);
   }
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
+  if (hireDateInput) payload.hire_date = hireDateInput;
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && newPhase !== '入社済み') payload.status = '進行中';
   // 入社済みになったら自動的にステータスも終了_入社済みにする
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
   else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
   const { error } = await sb.from('pipeline').update(payload).eq('id', id);
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   p.phase = newPhase || null;
+  if (hireDateInput) p.hire_date = hireDateInput;
   if (payload.status) p.status = payload.status;
   if (newPhase && newPhase !== oldPhase) {
     const { error: histError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: id, phase: newPhase, changed_at: decisionDate });
