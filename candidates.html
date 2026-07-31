@@ -165,6 +165,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <button class="nav-btn" onclick="setTab('future',this)">将来声かけ</button>
     <button class="nav-btn" onclick="setTab('done',this)">終了</button>
     <button class="nav-btn" onclick="setTab('all',this)">全て</button>
+    <button class="nav-btn" onclick="setTab('trash',this)" style="color:#b3261e">🗑️ ゴミ箱</button>
   </div>
   <div class="main">
     <div class="filters">
@@ -424,7 +425,7 @@ async function loadData() {
   TEMPLATES = templates || [];
   MEDIA_FEE_RATES = feeRates || [];
   ALL_COMPANIES = companiesData || [];
-  document.getElementById('header-count').textContent = DATA.length + '名';
+  document.getElementById('header-count').textContent = DATA.filter(c => !c.deleted_at).length + '名';
   const sources = [...new Set(DATA.map(c => c.source).filter(Boolean))].sort();
   const sel = document.getElementById('source-filter');
   sel.innerHTML = '<option value="">全経路</option>';
@@ -568,6 +569,8 @@ function render() {
   const sort1 = document.getElementById('sort1').value;
   const sort2 = document.getElementById('sort2').value;
   let res = DATA.filter(c => {
+    if (currentTab === 'trash') return !!c.deleted_at;
+    if (c.deleted_at) return false; // ゴミ箱に入っているものは通常タブには出さない
     if (currentTab === 'active' && c.status !== '進行中') return false;
     if (currentTab === 'future' && !c.status?.includes('将来的')) return false;
     if (currentTab === 'done' && !c.status?.includes('終了')) return false;
@@ -818,7 +821,8 @@ function renderEditForm(c) {
     '</div>' +
     '</div>' +
     '<div class="form-actions">' +
-    (c ? '<button class="btn-delete" onclick="deleteCandidate(\'' + c.id + '\')">🗑 削除</button>' : '') +
+    (c && c.deleted_at ? '<button class="btn-delete" style="background:#1baf7a" onclick="restoreCandidate(\'' + c.id + '\')">♻️ 復元</button><button class="btn-delete" onclick="permanentlyDeleteCandidate(\'' + c.id + '\')">🗑 完全に削除</button>' :
+      c ? '<button class="btn-delete" onclick="deleteCandidate(\'' + c.id + '\')">🗑 削除（ゴミ箱へ）</button>' : '') +
     '<span class="save-msg" id="save-msg"></span>' +
     '<button class="btn-cancel" onclick="closeModal()">キャンセル</button>' +
     '<button class="btn-save" onclick="saveCandidate()">保存</button>' +
@@ -1110,7 +1114,21 @@ async function saveCandidate() {
 }
 
 async function deleteCandidate(id) {
-  if (!confirm('この候補者を削除してよいですか？')) return;
+  if (!confirm('この候補者をゴミ箱に移動してよいですか？（ゴミ箱から復元できます）')) return;
+  var { error } = await sb.from('candidates').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('削除に失敗しました: ' + error.message); return; }
+  closeModal(); loadData();
+}
+
+async function restoreCandidate(id) {
+  var { error } = await sb.from('candidates').update({ deleted_at: null }).eq('id', id);
+  if (error) { alert('復元に失敗しました: ' + error.message); return; }
+  closeModal(); loadData();
+}
+
+async function permanentlyDeleteCandidate(id) {
+  if (!confirm('本当に完全に削除しますか？この候補者に紐づくパイプライン・フェーズ履歴・予実管理の数値もすべて削除され、元に戻せません。')) return;
+  if (!confirm('最終確認です。過去に確定した売上・粗利も含めて消えます。本当によろしいですか？')) return;
   var { error } = await sb.from('candidates').delete().eq('id', id);
   if (error) { alert('削除に失敗しました: ' + error.message); return; }
   closeModal(); loadData();
