@@ -918,6 +918,7 @@ async function inlinePhaseSave(id, newPhase) {
   if (!p) return;
   const oldPhase = p.phase;
   let decisionDate = new Date().toISOString();
+  let theoreticalSalaryInput = null;
   if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾') {
     const input = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
     if (input === null) return; // キャンセル時は変更しない
@@ -925,6 +926,18 @@ async function inlinePhaseSave(id, newPhase) {
       const d = new Date(input + 'T12:00:00');
       if (!isNaN(d.getTime())) decisionDate = d.toISOString();
     }
+    const salaryInput = prompt('理論年収を入力してください（未入力なら売上見込みを基準に設定します）', '');
+    if (salaryInput && !isNaN(parseFloat(salaryInput))) theoreticalSalaryInput = parseFloat(salaryInput);
+  }
+  // 内定承諾から他フェーズへ戻した場合、誤登録の取り消しとして決定履歴・粗利等をリセットする
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && p.candidate_id) {
+    if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) return;
+    const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', id).eq('phase', '内定承諾');
+    if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
+    PHASE_HISTORY = PHASE_HISTORY.filter(h => !(h.pipeline_id === id && h.phase === '内定承諾'));
+    const resetPayload = { gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null, decision_yomi: null, revenue_yomi: null, theoretical_salary: null };
+    const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', p.candidate_id);
+    if (!resetError && p.candidates) Object.assign(p.candidates, resetPayload);
   }
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   // 入社済みになったら自動的にステータスも終了_入社済みにする
@@ -945,6 +958,7 @@ async function inlinePhaseSave(id, newPhase) {
       status: '終了_承諾済み（フォローしようね）',
       decision_yomi: '100%',
       revenue_yomi: p.candidates?.revenue_forecast || null,
+      theoretical_salary: theoreticalSalaryInput != null ? theoreticalSalaryInput : (p.candidates?.revenue_forecast || null),
     };
     const gp = calcGrossProfit(p.candidates?.revenue_forecast, p.candidates?.source);
     if (gp) {

@@ -1230,7 +1230,9 @@ async function savePipeline() {
   if (!jobName) { alert('求人名を入力してください'); return; }
   var newPhaseValue = document.getElementById('pf-phase').value;
   var willBecomeAccepted = newPhaseValue === '内定承諾' && newPhaseValue !== currentPipelineOriginalPhase;
+  var willRevertFromAccepted = currentPipelineOriginalPhase === '内定承諾' && newPhaseValue !== '内定承諾';
   var decisionDate = new Date().toISOString();
+  var theoreticalSalaryInput = null;
   if (willBecomeAccepted) {
     var dateInput = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
     if (dateInput === null) return; // キャンセル時は保存しない
@@ -1238,6 +1240,11 @@ async function savePipeline() {
       var dObj = new Date(dateInput + 'T12:00:00');
       if (!isNaN(dObj.getTime())) decisionDate = dObj.toISOString();
     }
+    var salaryInput = prompt('理論年収を入力してください（未入力なら売上見込みを基準に設定します）', '');
+    if (salaryInput && !isNaN(parseFloat(salaryInput))) theoreticalSalaryInput = parseFloat(salaryInput);
+  }
+  if (willRevertFromAccepted) {
+    if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) return;
   }
   var payload = {
     job_name: jobName,
@@ -1273,6 +1280,16 @@ async function savePipeline() {
     const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase, changed_at: decisionDate });
     if (historyError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + historyError.message); }
   }
+  if (willRevertFromAccepted && savedPipelineId && currentPipelineCandidateId) {
+    const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', savedPipelineId).eq('phase', '内定承諾');
+    if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); }
+    const resetPayload = { gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null, decision_yomi: null, revenue_yomi: null, theoretical_salary: null };
+    const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', currentPipelineCandidateId);
+    if (!resetError) {
+      const candForReset = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
+      if (candForReset) Object.assign(candForReset, resetPayload);
+    }
+  }
   if (phaseChanged && payload.phase === '内定承諾') {
     const cand = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
     if (cand) {
@@ -1281,6 +1298,7 @@ async function savePipeline() {
         status: '終了_承諾済み（フォローしようね）',
         decision_yomi: '100%',
         revenue_yomi: cand.revenue_forecast || null,
+        theoretical_salary: theoreticalSalaryInput != null ? theoreticalSalaryInput : (cand.revenue_forecast || null),
       };
       const gp = calcGrossProfit(cand.revenue_forecast, cand.source);
       if (gp) {
