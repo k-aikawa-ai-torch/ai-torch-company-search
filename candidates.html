@@ -468,11 +468,12 @@ function getPhaseClass(phase) {
 }
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
-function today() { return new Date().toISOString().substring(0,10); }
+function toLocalDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function today() { return toLocalDateStr(new Date()); }
 function lastDayOfNextMonth(hireDate) {
   const d = new Date(hireDate);
   const nextMonthLastDay = new Date(d.getFullYear(), d.getMonth() + 2, 0);
-  return nextMonthLastDay.toISOString().substring(0,10);
+  return toLocalDateStr(nextMonthLastDay);
 }
 
 let sort1Dir = -1;

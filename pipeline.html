@@ -521,7 +521,8 @@ function calcGrossProfit(revenueYomi, source) {
   const rate = getCurrentFeeRate(source);
   return { amount: Math.round(revenueYomi * (1 - rate)), rate: rate };
 }
-function today() { return new Date().toISOString().substring(0,10); }
+function toLocalDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function today() { return toLocalDateStr(new Date()); }
 function dayDiff(d) {
   if (!d) return null;
   return Math.floor((new Date(d) - new Date(today())) / 86400000);
@@ -604,11 +605,11 @@ function renderActionList(skipAutoScroll) {
   });
 
   const todayStr = today();
+  const [ty, tm, td] = todayStr.split('-').map(Number);
   const dates = [];
   for (let i = actionListRange.from; i <= actionListRange.to; i++) {
-    const d = new Date(todayStr);
-    d.setDate(d.getDate() + i);
-    dates.push(d.toISOString().substring(0,10));
+    const d = new Date(ty, tm - 1, td + i);
+    dates.push(toLocalDateStr(d));
   }
 
   let html = '';
@@ -940,7 +941,7 @@ function pipelinePhaseToCandidatePhase(pipelinePhase) {
 function lastDayOfNextMonth(hireDate) {
   const d = new Date(hireDate);
   const nextMonthLastDay = new Date(d.getFullYear(), d.getMonth() + 2, 0);
-  return nextMonthLastDay.toISOString().substring(0,10);
+  return toLocalDateStr(nextMonthLastDay);
 }
 
 let pendingDecisionPipelineId = null;
