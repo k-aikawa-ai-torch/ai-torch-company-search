@@ -953,7 +953,8 @@ async function inlinePhaseSave(id, newPhase) {
       phase: pipelinePhaseToCandidatePhase(newPhase), status: '進行中',
     };
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', p.candidate_id);
-    if (!resetError && p.candidates) Object.assign(p.candidates, resetPayload);
+    if (resetError) { alert('候補者データのリセットに失敗しました: ' + resetError.message); return; }
+    if (p.candidates) Object.assign(p.candidates, resetPayload);
   }
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   if (hireDateInput) payload.hire_date = hireDateInput;

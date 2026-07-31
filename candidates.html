@@ -1322,7 +1322,9 @@ async function savePipeline() {
       phase: pipelinePhaseToCandidatePhase(newPhaseValue), status: '進行中',
     };
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', currentPipelineCandidateId);
-    if (!resetError) {
+    if (resetError) {
+      alert('候補者データのリセットに失敗しました: ' + resetError.message);
+    } else {
       const candForReset = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
       if (candForReset) Object.assign(candForReset, resetPayload);
     }
