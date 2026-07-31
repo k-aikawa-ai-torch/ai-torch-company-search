@@ -469,6 +469,11 @@ function getPhaseClass(phase) {
 function fmtDate(v) { return v ? v.substring(0,10) : '-'; }
 function fmtSalary(v) { return v ? '¥'+(v/10000).toFixed(0)+'万' : '-'; }
 function today() { return new Date().toISOString().substring(0,10); }
+function lastDayOfNextMonth(hireDate) {
+  const d = new Date(hireDate);
+  const nextMonthLastDay = new Date(d.getFullYear(), d.getMonth() + 2, 0);
+  return nextMonthLastDay.toISOString().substring(0,10);
+}
 
 let sort1Dir = -1;
 let sort2Dir = -1;
@@ -1148,10 +1153,12 @@ function openPipelineAdd(candidateId) {
   currentPipelineCandidateId = candidateId;
   currentPipelineOriginalPhase = null;
   currentAcceptHistoryRecord = null;
+  currentPipelineData = null;
   showPipelineModal(null);
 }
 
 let currentAcceptHistoryRecord = null;
+let currentPipelineData = null;
 
 async function saveDecisionDate() {
   const dateVal = document.getElementById('pf-decision-date').value;
@@ -1176,6 +1183,7 @@ async function openPipelineEdit(pipelineId) {
   var { data } = await sb.from('pipeline').select('*').eq('id', pipelineId).single();
   currentPipelineOriginalPhase = data ? data.phase : null;
   currentPipelineCandidateId = data ? data.candidate_id : null;
+  currentPipelineData = data || null;
   currentAcceptHistoryRecord = null;
   if (data) {
     const { data: history } = await sb.from('pipeline_phase_history').select('*').eq('pipeline_id', pipelineId).eq('phase', '内定承諾').order('changed_at', { ascending: true }).limit(1);
@@ -1199,6 +1207,13 @@ function showPipelineModal(p) {
     '<div class="form-group full"><label>求人URL</label><input id="pf-job-url" value="' + (p ? p.job_url||'' : '') + '" placeholder="https://..."></div>' +
     '<div class="form-group"><label>フェーズ</label><select id="pf-phase" onchange="autoSetJoinedStatus()"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="pf-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
+    '<div id="pf-decision-fields" style="display:none;grid-column:1/-1;border:1px solid #DEE7F7;border-radius:8px;padding:12px;background:#FAFBFE">' +
+      '<div style="font-size:12px;font-weight:500;color:#14213D;margin-bottom:8px">内定承諾の登録</div>' +
+      '<div class="form-grid">' +
+      '<div class="form-group"><label>決定日</label><input id="pf-decision-input" type="date"></div>' +
+      '<div class="form-group"><label>理論年収（未入力なら売上見込みを基準に設定）</label><input id="pf-salary-input" type="number"></div>' +
+      '<div class="form-group"><label>入社日（未定なら空欄でOK）</label><input id="pf-hire-input" type="date"></div>' +
+      '</div></div>' +
     (currentAcceptHistoryRecord ? '<div class="form-group"><label>内定承諾の決定日（修正可）</label><div style="display:flex;gap:8px;align-items:center"><input id="pf-decision-date" type="date" value="' + currentAcceptHistoryRecord.changed_at.substring(0,10) + '"><button type="button" onclick="saveDecisionDate()" style="padding:0 12px;height:40px;border:1px solid #DEE7F7;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap">更新</button></div></div>' : '') +
     '<div class="form-group"><label>NextAction日</label><input id="pf-next-action-day" type="date" value="' + (p ? p.next_action_day||'' : '') + '"></div>' +
     '<div class="form-group"><label>アクション内容</label><input id="pf-next-action-note" value="' + (p ? (p.next_action_note||'').replace(/"/g,'&quot;') : '') + '" placeholder="例：面接日程の調整連絡"></div>' +
@@ -1243,6 +1258,14 @@ function autoSetJoinedStatus() {
   } else if (currentPipelineOriginalPhase === '内定承諾' || currentPipelineOriginalPhase === '入社済み') {
     document.getElementById('pf-status').value = '進行中';
   }
+  const decisionFields = document.getElementById('pf-decision-fields');
+  if (decisionFields) {
+    const willBecomeAccepted = phase === '内定承諾' && phase !== currentPipelineOriginalPhase;
+    decisionFields.style.display = willBecomeAccepted ? 'block' : 'none';
+    if (willBecomeAccepted && !document.getElementById('pf-decision-input').value) {
+      document.getElementById('pf-decision-input').value = today();
+    }
+  }
 }
 
 function pipelinePhaseToCandidatePhase(pipelinePhase) {
@@ -1264,15 +1287,13 @@ async function savePipeline() {
   var theoreticalSalaryInput = null;
   var hireDateInput = null;
   if (willBecomeAccepted) {
-    var dateInput = prompt('内定承諾の決定日を入力してください（未入力なら今日の日付で計上されます）', today());
-    if (dateInput === null) return; // キャンセル時は保存しない
-    if (dateInput) {
-      var dObj = new Date(dateInput + 'T12:00:00');
-      if (!isNaN(dObj.getTime())) decisionDate = dObj.toISOString();
-    }
-    var salaryInput = prompt('理論年収を入力してください（未入力なら売上見込みを基準に設定します）', '');
+    var dateInput = document.getElementById('pf-decision-input').value;
+    if (!dateInput) { alert('決定日を入力してください'); return; }
+    var dObj = new Date(dateInput + 'T12:00:00');
+    if (!isNaN(dObj.getTime())) decisionDate = dObj.toISOString();
+    var salaryInput = document.getElementById('pf-salary-input').value;
     if (salaryInput && !isNaN(parseFloat(salaryInput))) theoreticalSalaryInput = parseFloat(salaryInput);
-    var hireInput = prompt('入社日が決まっていれば入力してください（未定なら空欄でOK・後から入力もできます）', '');
+    var hireInput = document.getElementById('pf-hire-input').value;
     if (hireInput) hireDateInput = hireInput;
   }
   if (willRevertFromAccepted) {
@@ -1293,6 +1314,9 @@ async function savePipeline() {
     updated_at: new Date().toISOString(),
   };
   if (hireDateInput) payload.hire_date = hireDateInput;
+  if (hireDateInput && !(currentPipelineData && currentPipelineData.payment_date)) {
+    payload.payment_date = lastDayOfNextMonth(hireDateInput);
+  }
   var error;
   var savedPipelineId = currentPipelineId;
   var phaseChanged = payload.phase && payload.phase !== currentPipelineOriginalPhase;
