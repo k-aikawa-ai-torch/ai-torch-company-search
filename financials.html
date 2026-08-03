@@ -409,13 +409,18 @@ function renderKeepScroll() {
     if (el) savedLeft[id] = el.scrollLeft;
   });
   render();
-  requestAnimationFrame(() => {
+  const restore = () => {
     window.scrollTo(0, y);
     scrollWraps.forEach(id => {
       const el = document.getElementById(id);
       if (el && savedLeft[id] != null) el.scrollLeft = savedLeft[id];
     });
+  };
+  requestAnimationFrame(() => {
+    restore();
+    requestAnimationFrame(restore);
   });
+  setTimeout(restore, 50);
 }
 
 function render() {
