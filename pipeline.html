@@ -211,6 +211,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       <datalist id="company-options"></datalist>
       <table id="pipeline-table">
         <colgroup>
+          <col style="width:70px">
           <col id="col-0" style="width:60px">
           <col id="col-1" style="width:100px">
           <col id="col-2" style="width:90px">
@@ -227,6 +228,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
         </colgroup>
         <thead>
           <tr>
+            <th style="width:70px"></th>
             <th class="col-member" data-col="0">担当<span class="col-resizer" data-col="0"></span></th>
             <th data-col="1">ステータス<span class="col-resizer" data-col="1"></span></th>
             <th data-col="2">候補者<span class="col-resizer" data-col="2"></span></th>
@@ -242,7 +244,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
             <th></th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="13" class="loading">データを読み込み中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="14" class="loading">データを読み込み中…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -367,7 +369,7 @@ async function loadData() {
     sb.from('media_fee_rates').select('*'),
   ]);
   if (error) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="13" class="loading">読み込み失敗</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="loading">読み込み失敗</td></tr>';
     return;
   }
   DATA = data;
@@ -645,7 +647,7 @@ function renderActionList(skipAutoScroll) {
 }
 
 function openModalUnlessInput(evt, id) {
-  if (evt.target.tagName === 'INPUT') return;
+  if (['INPUT','SELECT','BUTTON','OPTION'].includes(evt.target.tagName)) return;
   openModal(id);
 }
 
@@ -852,7 +854,7 @@ function render() {
   });
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="13" class="empty">該当する案件がありません</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="empty">該当する案件がありません</td></tr>';
     return;
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
@@ -863,7 +865,8 @@ function render() {
     const statusOpts = '<option value="">未設定</option>' + PIPELINE_STATUS_LIST.map(s =>
       '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>'
     ).join('');
-    return `<tr data-id="${p.id}">
+    return `<tr data-id="${p.id}" onclick="openModalUnlessInput(event,'${p.id}')" style="cursor:pointer">
+      <td><button class="icon-btn" onclick="event.stopPropagation();openModal('${p.id}')" title="詳細">🔍</button><button class="icon-btn" onclick="event.stopPropagation();deletePipelineRow('${p.id}')" title="削除" style="color:#b3261e">🗑️</button></td>
       <td class="col-member" style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
       <td><select onchange="inlineSave('${p.id}','status',this.value||null)">${statusOpts}</select></td>
       <td><strong>${p.candidates?.name||'-'}</strong></td>
@@ -876,7 +879,6 @@ function render() {
       <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${p.candidates?.decision_yomi||'-'}</td>
       <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${fmtSalary(p.candidates?.revenue_forecast)}</td>
       <td style="color:#6B7A99;font-size:12px;white-space:nowrap">${cleanSource(p.candidates?.source)||'-'}</td>
-      <td><button class="icon-btn" onclick="openModal('${p.id}')" title="詳細">🔍</button><button class="icon-btn" onclick="deletePipelineRow('${p.id}')" title="削除" style="color:#b3261e">🗑️</button></td>
     </tr>`;
   }).join('');
   updateMemberColumnVisibility();
