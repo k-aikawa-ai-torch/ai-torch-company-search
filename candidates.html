@@ -287,6 +287,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
   <div id="modal-box">
     <div class="modal-header">
       <span id="modal-title">候補者詳細</span>
+      <button class="modal-close" id="copy-link-btn" onclick="copyDetailLink()" style="font-size:12px;border:1px solid #DEE7F7;border-radius:6px;padding:4px 10px;background:#fff;color:#14213D;margin-right:8px;position:static">🔗 リンクをコピー</button>
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-tabs">
@@ -443,6 +444,8 @@ async function loadData() {
     }
   }
   render();
+  const urlId = new URLSearchParams(window.location.search).get('id');
+  if (urlId) openDetailFromUrl(urlId);
 }
 
 function setMember(m, el) {
@@ -647,6 +650,13 @@ function render() {
 }
 
 async function openDetail(id) {
+  await showDetailModal(id);
+  const url = new URL(window.location);
+  url.searchParams.set('id', id);
+  history.pushState({ candidateId: id }, '', url);
+}
+
+async function showDetailModal(id) {
   currentId = id;
   const c = DATA.find(d => d.id === id);
   document.getElementById('modal-title').textContent = c ? c.name : '候補者詳細';
@@ -657,6 +667,20 @@ async function openDetail(id) {
   document.getElementById('modal-edit').style.display = 'none';
   document.getElementById('modal-detail').style.display = 'block';
   document.getElementById('modal').classList.add('open');
+}
+
+function copyDetailLink() {
+  if (!currentId) { alert('保存済みの候補者を開いてからコピーしてください'); return; }
+  const url = new URL(window.location);
+  url.searchParams.set('id', currentId);
+  navigator.clipboard.writeText(url.toString()).then(() => {
+    const btn = document.getElementById('copy-link-btn');
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = 'コピーしました！';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    }
+  }).catch(() => alert('コピーに失敗しました。URL: ' + url.toString()));
 }
 
 function openAdd() {
@@ -1143,6 +1167,26 @@ async function permanentlyDeleteCandidate(id) {
 function closeModal() {
   document.getElementById('modal').classList.remove('open');
   currentId = null;
+  const url = new URL(window.location);
+  if (url.searchParams.has('id')) {
+    url.searchParams.delete('id');
+    history.pushState({}, '', url);
+  }
+}
+window.addEventListener('popstate', function(e) {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id) {
+    openDetailFromUrl(id);
+  } else {
+    document.getElementById('modal').classList.remove('open');
+    currentId = null;
+  }
+});
+function openDetailFromUrl(id) {
+  if (!DATA.length) return; // データ読み込み前なら何もしない（loadData完了後に別途呼ばれる）
+  const c = DATA.find(d => d.id === id);
+  if (c) showDetailModal(id);
 }
 document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === document.getElementById('modal')) closeModal();
