@@ -384,6 +384,11 @@ let memoMode = 'edit';
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
 const PHASE_LIST = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
 const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+// 「選考なう」以降のフェーズかどうか（推薦人数の集計基準日＝選考なう初到達日を記録するために使用）
+function isSenkouNowOrLater(phase) {
+  var idx = PHASE_ORDER.indexOf(phase);
+  return idx >= PHASE_ORDER.indexOf('選考なう');
+}
 const STATUS_LIST = ['進行中','将来的に声かけ予定_再アプローチ','終了_他社に移行','終了_自社と合わない','終了_転職延期','終了_承諾済み（フォローしようね）'];
 const SOURCE_LIST = ['スカウト（ビズリーチ）','レバテックダイレクト','スカウト（LinkedIn）','スカウト（AMBI）','スカウト（YOUTRUST）','スカウト（オープンワーク）','スカウト（DodaX）','リファラル（求職者紹介）','リファラル（社員経由）','自社HP','アライアンス'];
 const DECISION_YOMI_LIST = ['','100%','80%','60%','40%','20%','10%'];
@@ -1130,6 +1135,11 @@ async function saveCandidate() {
     recommendation_text: document.getElementById('f-recommendation') ? document.getElementById('f-recommendation').value : null,
     updated_at: new Date().toISOString(),
   };
+  // 推薦人数の集計基準日：初めて「選考なう」以降のフェーズになったタイミングだけ記録する（一度記録したら上書きしない）
+  var existingForSenkou = currentId ? DATA.find(function(c) { return c.id === currentId; }) : null;
+  if (isSenkouNowOrLater(payload.phase) && (!existingForSenkou || !existingForSenkou.senkou_now_at)) {
+    payload.senkou_now_at = new Date().toISOString();
+  }
   var error;
   if (currentId) {
     var res = await sb.from('candidates').update(payload).eq('id', currentId);
@@ -1392,6 +1402,10 @@ async function savePipeline() {
       decision_yomi: null, revenue_yomi: null, theoretical_salary: null,
       phase: pipelinePhaseToCandidatePhase(newPhaseValue), status: '進行中',
     };
+    var candForReset0 = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
+    if (isSenkouNowOrLater(resetPayload.phase) && (!candForReset0 || !candForReset0.senkou_now_at)) {
+      resetPayload.senkou_now_at = new Date().toISOString();
+    }
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', currentPipelineCandidateId);
     if (resetError) {
       alert('候補者データのリセットに失敗しました: ' + resetError.message);
@@ -1410,6 +1424,7 @@ async function savePipeline() {
         revenue_yomi: cand.revenue_forecast || null,
         theoretical_salary: theoreticalSalaryInput != null ? theoreticalSalaryInput : (cand.revenue_forecast || null),
       };
+      if (!cand.senkou_now_at) candUpdate.senkou_now_at = decisionDate;
       const gp = calcGrossProfit(cand.revenue_forecast, cand.source);
       if (gp) {
         candUpdate.gross_profit = gp.amount;

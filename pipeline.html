@@ -286,6 +286,12 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
 const SELECTION_PHASES = ['書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾'];
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
+// 候補者フェーズ（候補者ページのものと同じ並び）。推薦人数の集計基準日＝選考なう初到達日を記録するために使用
+const CANDIDATE_PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
+function isCandidateSenkouNowOrLater(phase) {
+  var idx = CANDIDATE_PHASE_ORDER.indexOf(phase);
+  return idx >= CANDIDATE_PHASE_ORDER.indexOf('選考なう');
+}
 
 let DATA = [];
 let currentMember = '全員';
@@ -1003,6 +1009,9 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
       decision_yomi: null, revenue_yomi: null, theoretical_salary: null,
       phase: pipelinePhaseToCandidatePhase(newPhase), status: '進行中',
     };
+    if (isCandidateSenkouNowOrLater(resetPayload.phase) && !(p.candidates && p.candidates.senkou_now_at)) {
+      resetPayload.senkou_now_at = new Date().toISOString();
+    }
     const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', p.candidate_id);
     if (resetError) { alert('候補者データのリセットに失敗しました: ' + resetError.message); return; }
     if (p.candidates) Object.assign(p.candidates, resetPayload);
@@ -1033,6 +1042,7 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
       revenue_yomi: p.candidates?.revenue_forecast || null,
       theoretical_salary: theoreticalSalaryInput != null ? theoreticalSalaryInput : (p.candidates?.revenue_forecast || null),
     };
+    if (!p.candidates?.senkou_now_at) candUpdate.senkou_now_at = decisionDate;
     const gp = calcGrossProfit(p.candidates?.revenue_forecast, p.candidates?.source);
     if (gp) {
       candUpdate.gross_profit = gp.amount;
