@@ -869,7 +869,7 @@ function render() {
       <td><button class="icon-btn" onclick="event.stopPropagation();openModal('${p.id}')" title="詳細">🔍</button><button class="icon-btn" onclick="event.stopPropagation();deletePipelineRow('${p.id}')" title="削除" style="color:#b3261e">🗑️</button></td>
       <td class="col-member" style="color:#6B7A99;font-size:11px">${p.members?.display_name||'-'}</td>
       <td><select onchange="inlineSave('${p.id}','status',this.value||null)">${statusOpts}</select></td>
-      <td><strong>${p.candidates?.name||'-'}</strong></td>
+      <td>${p.candidate_id ? '<a href="candidates.html?id='+p.candidate_id+'" target="_blank" onclick="event.stopPropagation()" style="color:#0D40D9;text-decoration:none;font-weight:600">'+(p.candidates?.name||'-')+'</a>' : '<strong>-</strong>'}</td>
       <td><input type="text" list="company-options" value="${(p.companies?.name||'').replace(/"/g,'&quot;')}" onchange="inlineSaveCompany('${p.id}',this.value)" placeholder="企業名で検索/新規入力"></td>
       <td><input type="text" value="${(p.job_name||'').replace(/"/g,'&quot;').replace(/\n/g,' ')}" onchange="inlineSave('${p.id}','job_name',this.value)"></td>
       <td><select onchange="inlinePhaseSave('${p.id}',this.value,this)">${phaseOpts}</select></td>

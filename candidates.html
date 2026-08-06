@@ -1135,12 +1135,14 @@ async function saveCandidate() {
     var res = await sb.from('candidates').update(payload).eq('id', currentId);
     error = res.error;
   } else {
-    var res2 = await sb.from('candidates').insert(payload);
+    var res2 = await sb.from('candidates').insert(payload).select().single();
     error = res2.error;
+    if (!error && res2.data) currentId = res2.data.id;
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   document.getElementById('save-msg').textContent = '✅ 保存しました';
-  setTimeout(function() { closeModal(); loadData(); }, 800);
+  setTimeout(function() { document.getElementById('save-msg').textContent = ''; }, 2000);
+  await loadData();
 }
 
 async function deleteCandidate(id) {
@@ -1508,7 +1510,7 @@ function initFileSection(candidateId) {
   uploadDiv.appendChild(fileInput);
 
   sec.appendChild(uploadDiv);
-  detailEl.appendChild(sec);
+  detailEl.insertBefore(sec, detailEl.firstChild);
 
   // イベント
   selBtn.addEventListener('click', function(e) {
