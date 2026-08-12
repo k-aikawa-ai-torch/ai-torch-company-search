@@ -21,11 +21,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 .nav{background:#fff;border-bottom:1px solid #DEE7F7;display:flex;gap:0}
 .nav-btn{padding:10px 20px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#6B7A99;border-bottom:2px solid transparent}
 .nav-btn.active{color:#14213D;border-bottom-color:#14213D;font-weight:500}
-.main{max-width:1500px;margin:0 auto;padding:16px;display:flex;gap:16px;align-items:flex-start}
-.list-col{flex:1;min-width:0}
-.preview-col{width:420px;flex-shrink:0;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;border:1px solid #DEE7F7;border-radius:12px;background:#fff}
-@media (max-width:1100px){.main{flex-direction:column}.preview-col{width:100%;position:static;max-height:none}}
-.preview-placeholder{padding:40px 24px;text-align:center;color:#aaa;font-size:13px}
+.main{max-width:1000px;margin:0 auto;padding:16px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
 .filters-advanced{display:none;flex-wrap:wrap;gap:16px;margin-bottom:12px;padding:14px 16px;background:#fff;border:1px solid #DEE7F7;border-radius:8px}
 .filters-advanced.show{display:flex}
@@ -57,13 +53,11 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .salary-cell{white-space:nowrap;color:#2d6a4f;font-weight:500}
 .today-badge{background:#ffebcc;color:#b35a00;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
 .overdue-badge{background:#feecec;color:#991a1a;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px}
-#pipeline-modal,#fee-rate-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
-#modal{display:block}
-#fee-rate-modal.open{display:flex}
+#modal,#pipeline-modal,#fee-rate-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+#modal.open,#fee-rate-modal.open{display:flex}
 #pipeline-modal{z-index:1100}
 #pipeline-modal.open{display:flex}
 #modal-box,#pipeline-modal-box,#fee-rate-modal-box{background:#fff;border-radius:12px;width:100%;max-width:700px;padding:24px;margin:auto}
-.preview-col #modal-box{max-width:none;margin:0;border-radius:12px}
 #pipeline-modal-box{max-width:560px}
 .modal-header{font-size:16px;font-weight:500;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6B7A99}
@@ -174,7 +168,6 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <button class="nav-btn" onclick="setTab('trash',this)" style="color:#b3261e">🗑️ ゴミ箱</button>
   </div>
   <div class="main">
-    <div class="list-col">
     <div class="filters">
       <input type="text" id="q" placeholder="候補者名・経路・職種・現所属・電話番号・メールで検索…" oninput="render()">
       <select id="phase-filter" onchange="render()">
@@ -287,12 +280,15 @@ tr:hover td{background:#fafaf8;cursor:pointer}
       </table>
     </div>
   </div>
-    <div class="preview-col">
+  </div>
+</div>
+
 <div id="modal">
   <div id="modal-box">
     <div class="modal-header">
-      <span id="modal-title">候補者にカーソルを合わせてください</span>
+      <span id="modal-title">候補者詳細</span>
       <button class="modal-close" id="copy-link-btn" onclick="copyDetailLink()" style="font-size:12px;border:1px solid #DEE7F7;border-radius:6px;padding:4px 10px;background:#fff;color:#14213D;margin-right:8px;position:static">🔗 リンクをコピー</button>
+      <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-tabs">
       <button class="modal-tab active" onclick="setModalTab('detail',this)">詳細</button>
@@ -300,10 +296,6 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     </div>
     <div id="modal-detail"></div>
     <div id="modal-edit" style="display:none"></div>
-  </div>
-</div>
-    </div>
-    </div>
   </div>
 </div>
 
@@ -388,9 +380,6 @@ let currentPipelineId = null;
 let currentPipelineCandidateId = null;
 let currentPipelineOriginalPhase = null;
 let memoMode = 'edit';
-let formDirty = false;
-let autosaveTimer = null;
-let autosaveInFlight = false;
 
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
 const PHASE_LIST = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定KITAAA','内定承諾歓喜','入社後フォローしようね'];
@@ -425,27 +414,6 @@ function showApp() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   loadData();
-  initPreviewAutosave();
-}
-
-function initPreviewAutosave() {
-  closeModal(); // プレビュー欄をプレースホルダー表示で初期化
-  // 編集フォーム内での入力・選択・職種タグのクリックを検知して「未保存あり」フラグを立てる（フォームは再描画されるたびに中身が入れ替わるため、常設のコンテナに委譲する）
-  const editContainer = document.getElementById('modal-edit');
-  editContainer.addEventListener('input', function() { formDirty = true; });
-  editContainer.addEventListener('change', function() { formDirty = true; });
-  editContainer.addEventListener('click', function(e) {
-    if (e.target.classList && e.target.classList.contains('jt-tag')) formDirty = true;
-  });
-  // 一覧からカーソルが完全に外れたら、編集中の内容を保存する
-  const tableWrap = document.querySelector('.table-wrap');
-  if (tableWrap) {
-    tableWrap.addEventListener('mouseleave', function() { flushAutosave(); });
-  }
-  // 保険として、一定間隔でも未保存の変更があれば保存する
-  autosaveTimer = setInterval(function() { flushAutosave(); }, 20000);
-  // タブを閉じる・離脱する直前にも保存を試みる（間に合わない場合もあるためベストエフォート）
-  window.addEventListener('beforeunload', function() { if (formDirty) flushAutosave(); });
 }
 sb.auth.getSession().then(({ data: { session } }) => { if (session) { CURRENT_USER_EMAIL = session.user.email; showApp(); } });
 
@@ -663,7 +631,7 @@ function render() {
     const dateLabel = c.next_action_day
       ? fmtDate(c.next_action_day) + (isToday ? '<span class="today-badge">今日</span>' : '') + (isOverdue ? '<span class="overdue-badge">期限切れ</span>' : '')
       : '-';
-    return '<tr onmouseenter="previewCandidate(\'' + c.id + '\')" onclick="previewCandidate(\'' + c.id + '\')">' +
+    return '<tr onclick="openDetail(\'' + c.id + '\')">' +
       '<td><strong>' + (c.name||'-') + '</strong>' + (c.members ? '<br><span style="font-size:10px;color:#aaa">' + c.members.display_name + '</span>' : '') + '</td>' +
       '<td><span class="phase-badge ' + getPhaseClass(c.phase) + '">' + (c.phase||'-') + '</span></td>' +
       '<td style="color:#666">' + (c.decision_yomi||'-') + '</td>' +
@@ -686,27 +654,24 @@ function render() {
   }).join('');
 }
 
-async function previewCandidate(id) {
-  if (id === currentId) return;
-  await flushAutosave();
-  if (currentId === id) return; // 待機中に既に同じ候補者へ切り替わっていた場合は何もしない
-  currentId = id;
-  formDirty = false;
-  const c = DATA.find(d => d.id === id);
-  document.getElementById('modal-title').textContent = c ? c.name : '候補者詳細';
-  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.modal-tab')[1].classList.add('active');
-  renderEditForm(c);
-  document.getElementById('modal-detail').style.display = 'none';
-  document.getElementById('modal-edit').style.display = 'block';
-  const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', id).order('created_at', { ascending: false });
-  if (currentId !== id) return; // 待機中に別の候補者へ切り替わっていたら描画しない（表示のズレ防止）
-  renderDetail(c, pipelines || []);
-  formDirty = false;
+async function openDetail(id) {
+  await showDetailModal(id);
+  const url = new URL(window.location);
+  url.searchParams.set('id', id);
+  history.pushState({ candidateId: id }, '', url);
 }
 
 async function showDetailModal(id) {
-  await previewCandidate(id);
+  currentId = id;
+  const c = DATA.find(d => d.id === id);
+  document.getElementById('modal-title').textContent = c ? c.name : '候補者詳細';
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-tab')[0].classList.add('active');
+  const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', id).order('created_at', { ascending: false });
+  renderDetail(c, pipelines || []);
+  document.getElementById('modal-edit').style.display = 'none';
+  document.getElementById('modal-detail').style.display = 'block';
+  document.getElementById('modal').classList.add('open');
 }
 
 function copyDetailLink() {
@@ -740,7 +705,6 @@ function openAdd() {
 }
 
 async function setModalTab(tab, el) {
-  if (tab === 'detail') { await flushAutosave(); }
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   const c = currentId ? DATA.find(d => d.id === currentId) : null;
@@ -1137,10 +1101,12 @@ function copyRecommendationPrompt(candidateId) {
   });
 }
 
-function buildCandidatePayloadFromForm() {
+async function saveCandidate() {
+  var name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('候補者名を入力してください'); return; }
   var memoEl = document.getElementById('f-memo');
-  return {
-    name: document.getElementById('f-name').value.trim(),
+  var payload = {
+    name: name,
     member_id: document.getElementById('f-member').value || null,
     phase: document.getElementById('f-phase').value || null,
     status: document.getElementById('f-status').value || null,
@@ -1169,11 +1135,6 @@ function buildCandidatePayloadFromForm() {
     recommendation_text: document.getElementById('f-recommendation') ? document.getElementById('f-recommendation').value : null,
     updated_at: new Date().toISOString(),
   };
-}
-
-async function saveCandidate() {
-  var payload = buildCandidatePayloadFromForm();
-  if (!payload.name) { alert('候補者名を入力してください'); return; }
   // 推薦人数の集計基準日：初めて「選考なう」以降のフェーズになったタイミングだけ記録する（一度記録したら上書きしない）
   var existingForSenkou = currentId ? DATA.find(function(c) { return c.id === currentId; }) : null;
   if (isSenkouNowOrLater(payload.phase) && (!existingForSenkou || !existingForSenkou.senkou_now_at)) {
@@ -1189,49 +1150,10 @@ async function saveCandidate() {
     if (!error && res2.data) currentId = res2.data.id;
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
-  formDirty = false;
   document.getElementById('save-msg').textContent = '✅ 保存しました';
   setTimeout(function() { document.getElementById('save-msg').textContent = ''; }, 2000);
   await loadData();
 }
-
-// 一覧でカーソルを合わせた候補者をその場編集した内容を、画面遷移なしで裏側だけ静かに保存する
-async function saveCandidateSilent() {
-  if (autosaveInFlight) return; // 直前の自動保存が実行中なら二重送信を避ける（formDirtyは残るので次のタイミングで拾われる）
-  if (!currentId) { formDirty = false; return; } // 新規追加中の下書きはホバー切替では保存しない（誤って空の候補者が作られるのを防ぐため）
-  var nameEl = document.getElementById('f-name');
-  if (!nameEl || document.getElementById('modal-edit').style.display === 'none') { return; }
-  var payload = buildCandidatePayloadFromForm();
-  if (!payload.name) { return; } // 名前が空の間は自動保存しない
-  var existingForSenkou = DATA.find(function(c) { return c.id === currentId; });
-  if (isSenkouNowOrLater(payload.phase) && (!existingForSenkou || !existingForSenkou.senkou_now_at)) {
-    payload.senkou_now_at = new Date().toISOString();
-  }
-  autosaveInFlight = true;
-  var savingId = currentId;
-  var { error } = await sb.from('candidates').update(payload).eq('id', savingId);
-  autosaveInFlight = false;
-  if (error) {
-    var msgEl = document.getElementById('save-msg');
-    if (msgEl) msgEl.textContent = '⚠️ 自動保存に失敗しました: ' + error.message;
-    return;
-  }
-  var idx = DATA.findIndex(function(d) { return d.id === savingId; });
-  if (idx > -1) Object.assign(DATA[idx], payload);
-  formDirty = false;
-  var msgEl2 = document.getElementById('save-msg');
-  if (msgEl2 && currentId === savingId) {
-    msgEl2.textContent = '💾 自動保存しました';
-    setTimeout(function() { if (msgEl2.textContent === '💾 自動保存しました') msgEl2.textContent = ''; }, 2000);
-  }
-  render(); // 一覧側の表示だけ最新化（DBへは再取得しない）
-}
-
-async function flushAutosave() {
-  if (!formDirty) return;
-  await saveCandidateSilent();
-}
-
 
 async function deleteCandidate(id) {
   if (!confirm('この候補者をゴミ箱に移動してよいですか？（ゴミ箱から復元できます）')) return;
@@ -1255,14 +1177,8 @@ async function permanentlyDeleteCandidate(id) {
 }
 
 function closeModal() {
+  document.getElementById('modal').classList.remove('open');
   currentId = null;
-  formDirty = false;
-  document.getElementById('modal-title').textContent = '候補者にカーソルを合わせてください';
-  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('modal-detail').innerHTML = '<div class="preview-placeholder">一覧の候補者にカーソルを合わせると、ここにプレビュー・編集欄が表示されます</div>';
-  document.getElementById('modal-detail').style.display = 'block';
-  document.getElementById('modal-edit').innerHTML = '';
-  document.getElementById('modal-edit').style.display = 'none';
   const url = new URL(window.location);
   if (url.searchParams.has('id')) {
     url.searchParams.delete('id');
@@ -1275,7 +1191,8 @@ window.addEventListener('popstate', function(e) {
   if (id) {
     openDetailFromUrl(id);
   } else {
-    closeModal();
+    document.getElementById('modal').classList.remove('open');
+    currentId = null;
   }
 });
 function openDetailFromUrl(id) {
@@ -1283,6 +1200,9 @@ function openDetailFromUrl(id) {
   const c = DATA.find(d => d.id === id);
   if (c) showDetailModal(id);
 }
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
 
 // ===== 提案求人 =====
 function openPipelineAdd(candidateId) {
