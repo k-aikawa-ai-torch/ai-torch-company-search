@@ -179,7 +179,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
   </div>
   <div class="main">
     <div class="filters">
-      <input type="text" id="q" placeholder="候補者名・経路・職種・現所属・電話番号・メールで検索…" oninput="render()">
+      <input type="text" id="q" placeholder="候補者名・経路・職種・現所属・電話番号・メール・メモ・ネクストアクションで検索…" oninput="render()">
       <select id="phase-filter" onchange="render()">
         <option value="">全フェーズ</option>
         <option>返信来た！</option><option>初回面談DONE</option><option>求人提案なう</option>
@@ -614,7 +614,8 @@ function render() {
     if (currentTab === 'done' && !c.status?.includes('終了')) return false;
     if (currentMember !== '全員' && c.members?.name !== MEMBER_MAP[currentMember]) return false;
     if (q && !(c.name||'').toLowerCase().includes(q) && !(c.source||'').toLowerCase().includes(q) && !(c.job_type||'').toLowerCase().includes(q)
-        && !(c.current_company||'').toLowerCase().includes(q) && !(c.phone||'').toLowerCase().includes(q) && !(c.email||'').toLowerCase().includes(q)) return false;
+        && !(c.current_company||'').toLowerCase().includes(q) && !(c.phone||'').toLowerCase().includes(q) && !(c.email||'').toLowerCase().includes(q)
+        && !(c.memo||'').toLowerCase().includes(q) && !(c.next_action||'').toLowerCase().includes(q)) return false;
     if (phaseFilter && c.phase !== phaseFilter) return false;
     if (sourceFilter && c.source !== sourceFilter) return false;
     if (yomiFilter && c.decision_yomi !== yomiFilter) return false;
