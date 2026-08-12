@@ -724,6 +724,41 @@ function openAdd() {
   document.getElementById('modal').classList.add('open');
 }
 
+function renderPipelineTableHtml(pipelines) {
+  let pipelineRows = '';
+  (pipelines || []).forEach(function(p) {
+    const jobName = (p.job_name || '').replace(/\n/g, ' ');
+    const jobLink = p.job_url ? '<a href="' + p.job_url + '" target="_blank" style="color:#14213D">' + jobName + '</a>' : jobName;
+    const companyName = p.companies ? p.companies.name : '';
+    pipelineRows += '<tr>' +
+      '<td style="color:#666;font-size:11px;white-space:nowrap">' + (companyName || '-') + '</td>' +
+      '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
+      '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
+      '<td style="color:#666;font-size:11px">' + (p.status||'-') + '</td>' +
+      '<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
+      '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.next_action_note||'-') + '</td>' +
+      '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.memo||'').replace(/\n/g,' ') + '</td>' +
+      '<td><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">編集</button></td>' +
+      '</tr>';
+  });
+  return (pipelines || []).length > 0
+    ? '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
+}
+
+// 提案求人の追加・編集・削除後、フォームの他項目（未保存の入力中の内容）を保持したまま提案求人テーブルだけを更新する
+async function refreshPipelineSection(candidateId) {
+  if (!candidateId || candidateId !== currentId) return;
+  const section = document.getElementById('pipeline-section');
+  if (!section) return;
+  const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', candidateId).order('created_at', { ascending: false });
+  if (candidateId !== currentId) return;
+  const titleEl = section.querySelector('.section-title');
+  if (titleEl) titleEl.textContent = '提案求人（' + (pipelines || []).length + '件）';
+  const wrapEl = section.querySelector('.pipeline-table-wrap');
+  if (wrapEl) wrapEl.innerHTML = renderPipelineTableHtml(pipelines || []);
+}
+
 function renderCandidatePanel(c, pipelines) {
   pipelines = pipelines || [];
   const memberOptions = MEMBERS.filter(function(m) { return Object.values(MEMBER_MAP).includes(m.name); }).map(function(m) { return '<option value="' + m.id + '"' + (c && c.member_id === m.id ? ' selected' : '') + '>' + m.display_name + '</option>'; }).join('');
