@@ -49,3 +49,18 @@ body{
 .member-tabs,.month-tabs{display:flex;gap:4px}
 .member-tab,.month-tab{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:#fff;transition:all 0.15s}
 .member-tab.active,.month-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ---- global cross-page search (Ctrl+K) ---- */
+#global-search-overlay{display:none;position:fixed;inset:0;background:rgba(20,33,61,0.45);z-index:2000;align-items:flex-start;justify-content:center;padding:12vh 20px 20px}
+#global-search-overlay.open{display:flex}
+#global-search-box{background:#fff;border-radius:12px;width:100%;max-width:560px;max-height:70vh;box-shadow:0 12px 40px rgba(20,33,61,0.25);overflow:hidden;display:flex;flex-direction:column}
+#global-search-input{width:100%;border:none;border-bottom:1px solid var(--border);padding:16px 18px;font-size:15px;font-family:'Zen Kaku Gothic New',sans-serif;color:var(--ink);outline:none;box-sizing:border-box}
+#global-search-results{overflow-y:auto;padding:6px}
+.gs-empty{padding:20px 16px;text-align:center;color:var(--muted);font-size:12px}
+.gs-group-title{font-size:11px;color:var(--muted);padding:8px 12px 4px;font-weight:500}
+.gs-item{display:flex;flex-direction:column;gap:1px;padding:8px 12px;border-radius:8px;cursor:pointer}
+.gs-item:hover,.gs-item.gs-active{background:var(--sidebar-bg)}
+.gs-item-title{font-size:13px;color:var(--ink);font-weight:500}
+.gs-item-sub{font-size:11px;color:var(--muted)}
+.sb-search-hint{margin-left:auto;font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 4px;opacity:0;transition:opacity 0.12s ease}
+.app-sidebar:hover .sb-search-hint{opacity:1}
