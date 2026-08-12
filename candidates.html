@@ -148,6 +148,7 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-item" onclick="openGlobalSearch()"><span class="sb-icon">🔍</span><span class="sb-label">検索</span><span class="sb-search-hint">Ctrl+K</span></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item active" href="candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
@@ -438,6 +439,13 @@ function initAutosave() {
   autosaveTimer = setInterval(function() { flushAutosave(); }, 10000);
   // タブを閉じる・離脱する直前にも保存を試みる（間に合わない場合もあるためベストエフォート）
   window.addEventListener('beforeunload', function() { if (formDirty) flushAutosave(); });
+  // Escキーで開いている最前面のモーダルを閉じる（提案求人モーダル→料率管理モーダル→候補者詳細モーダルの優先順）
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('pipeline-modal').classList.contains('open')) { closePipelineModal(); return; }
+    if (document.getElementById('fee-rate-modal').classList.contains('open')) { closeFeeRateModal(); return; }
+    if (document.getElementById('modal').classList.contains('open')) { closeModal(); return; }
+  });
 }
 sb.auth.getSession().then(({ data: { session } }) => { if (session) { CURRENT_USER_EMAIL = session.user.email; showApp(); } });
 
@@ -1146,6 +1154,9 @@ function openFeeRateModal() {
 function closeFeeRateModal() {
   document.getElementById('fee-rate-modal').classList.remove('open');
 }
+document.getElementById('fee-rate-modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('fee-rate-modal')) closeFeeRateModal();
+});
 
 function renderFeeRateLists() {
   const bySource = {};
@@ -1440,6 +1451,7 @@ function showPipelineModal(p) {
     '<button class="btn-save" onclick="savePipeline()">保存</button>' +
     '</div>';
   document.getElementById('pipeline-modal').classList.add('open');
+  pipelineModalDirty = false;
 }
 
 async function syncCompanyId() {
@@ -1606,6 +1618,7 @@ async function savePipeline() {
       if (!gpError) { Object.assign(cand, candUpdate); }
     }
   }
+  pipelineModalDirty = false;
   document.getElementById('pipeline-save-msg').textContent = '✅ 保存しました';
   setTimeout(function() {
     closePipelineModal();
@@ -1621,13 +1634,18 @@ async function deletePipeline(id) {
   if (currentId) refreshPipelineSection(currentId);
 }
 
+let pipelineModalDirty = false;
 function closePipelineModal() {
+  if (pipelineModalDirty && !confirm('保存されていない変更があります。保存せずに閉じてよいですか？')) return;
   document.getElementById('pipeline-modal').classList.remove('open');
   currentPipelineId = null;
+  pipelineModalDirty = false;
 }
 document.getElementById('pipeline-modal').addEventListener('click', function(e) {
   if (e.target === document.getElementById('pipeline-modal')) closePipelineModal();
 });
+document.getElementById('pipeline-modal-content').addEventListener('input', function() { pipelineModalDirty = true; });
+document.getElementById('pipeline-modal-content').addEventListener('change', function() { pipelineModalDirty = true; });
 
 
 
@@ -1813,5 +1831,6 @@ async function doDeleteFile(candidateId, fileId, storagePath, displayName) {
   loadFileFlags();
 }
 </script>
+<script src="assets/global-search.js"></script>
 </body>
 </html>

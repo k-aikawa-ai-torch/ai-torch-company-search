@@ -125,6 +125,7 @@ textarea.modal-edit-input{height:auto;padding:8px}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-item" onclick="openGlobalSearch()"><span class="sb-icon">🔍</span><span class="sb-label">検索</span><span class="sb-search-hint">Ctrl+K</span></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
@@ -414,6 +415,10 @@ async function loadData() {
   renderMonthSummary();
   renderActionList();
   render();
+  const urlPipelineId = new URLSearchParams(window.location.search).get('id');
+  if (urlPipelineId && DATA.find(function(p) { return p.id === urlPipelineId; })) {
+    openModal(urlPipelineId);
+  }
 }
 
 function updateMemberColVisibility() {
@@ -959,6 +964,7 @@ function lastDayOfNextMonth(hireDate) {
 }
 
 let currentModalId = null;
+let pipelineModalDirty = false;
 let pendingDecisionPipelineId = null;
 let pendingDecisionSelectEl = null;
 let pendingDecisionOldPhase = null;
@@ -986,6 +992,9 @@ function cancelDecisionModal() {
   pendingDecisionPipelineId = null;
   pendingDecisionSelectEl = null;
 }
+document.getElementById('decision-modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('decision-modal')) cancelDecisionModal();
+});
 
 async function confirmDecisionModal() {
   const id = pendingDecisionPipelineId;
@@ -1106,8 +1115,11 @@ function openModal(id) {
   document.getElementById('modal-save-btn').onclick = function() { saveModalEdits(id); };
   document.getElementById('modal-save-msg').textContent = '';
   currentModalId = id;
+  pipelineModalDirty = false;
   document.getElementById('modal').classList.add('open');
 }
+document.getElementById('modal-content').addEventListener('input', function() { pipelineModalDirty = true; });
+document.getElementById('modal-content').addEventListener('change', function() { pipelineModalDirty = true; });
 
 async function saveModalEdits(id) {
   const p = DATA.find(x => x.id === id);
@@ -1151,6 +1163,7 @@ async function saveModalEdits(id) {
     const phaseSelectEl = document.getElementById('modal-edit-phase');
     inlinePhaseSave(id, newPhase || null, phaseSelectEl);
   }
+  pipelineModalDirty = false;
   msg.textContent = '保存しました';
   setTimeout(() => { if (msg.textContent === '保存しました') msg.textContent = ''; }, 2500);
 }
@@ -1180,8 +1193,19 @@ async function saveDecisionDate(pipelineId) {
   openModal(pipelineId);
 }
 
-function closeModal() { document.getElementById('modal').classList.remove('open'); currentModalId = null; }
+function closeModal() {
+  if (pipelineModalDirty && !confirm('保存されていない変更があります。保存せずに閉じてよいですか？')) return;
+  document.getElementById('modal').classList.remove('open');
+  currentModalId = null;
+  pipelineModalDirty = false;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('decision-modal').classList.contains('open')) { cancelDecisionModal(); return; }
+  if (document.getElementById('modal').classList.contains('open')) { closeModal(); return; }
+});
 document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 </script>
+<script src="assets/global-search.js"></script>
 </body>
 </html>

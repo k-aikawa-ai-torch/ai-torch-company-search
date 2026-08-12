@@ -84,6 +84,7 @@ body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-ser
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-item" onclick="openGlobalSearch()"><span class="sb-icon">🔍</span><span class="sb-label">検索</span><span class="sb-search-hint">Ctrl+K</span></div>
     <a class="sb-item" href="index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
     <a class="sb-item active" href="companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
@@ -295,6 +296,8 @@ async function loadData() {
   document.getElementById('header-count').textContent = DATA.length + '社';
   initSelects();
   await loadPresets();
+  const urlQ = new URLSearchParams(window.location.search).get('q');
+  if (urlQ) document.getElementById('q').value = urlQ;
   render();
 }
 
@@ -653,5 +656,6 @@ function render() {
   }).join('');
 }
 </script>
+<script src="assets/global-search.js"></script>
 </body>
 </html>

@@ -77,6 +77,7 @@ h1 span{color:#0D40D9}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-item" onclick="openGlobalSearch()"><span class="sb-icon">🔍</span><span class="sb-label">検索</span><span class="sb-search-hint">Ctrl+K</span></div>
     <a class="sb-item active" href="index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
     <a class="sb-item" href="companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
     <a class="sb-item" href="candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
@@ -235,5 +236,6 @@ sb.auth.getSession().then(({ data: { session } }) => {
   }
 });
 </script>
+<script src="assets/global-search.js"></script>
 </body>
 </html>
