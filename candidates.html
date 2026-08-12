@@ -114,11 +114,11 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .file-item a:hover{text-decoration:underline}
 .file-item .file-ext{font-size:10px;color:#6B7A99;white-space:nowrap}
 .file-del-btn{padding:1px 6px;font-size:11px;border:1px solid #f5c0c0;border-radius:4px;background:#feecec;color:#991a1a;cursor:pointer}
-.upload-area{border:2px dashed #DEE7F7;border-radius:8px;padding:16px;text-align:center;margin-top:8px;transition:border-color 0.15s;cursor:pointer}
+.upload-area{border:2px dashed #DEE7F7;border-radius:8px;padding:8px;text-align:center;margin-top:4px;transition:border-color 0.15s;cursor:pointer}
 .upload-area:hover,.upload-area.over{border-color:#14213D;background:#f9f9f7}
-.upload-area p{font-size:12px;color:#6B7A99;margin-bottom:6px}
-.upload-msg{font-size:12px;color:#2d6a4f;margin-top:4px;min-height:16px}
-.file-list{margin-top:8px}
+.upload-area p{font-size:11px;color:#6B7A99;margin-bottom:3px}
+.upload-msg{font-size:11px;color:#2d6a4f;margin-top:2px;min-height:14px}
+.file-list{margin-top:4px}
 .file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f7;border:1px solid #DEE7F7;border-radius:6px;margin-bottom:4px}
 .file-item a{font-size:12px;color:#14213D;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-item a:hover{text-decoration:underline}
@@ -775,6 +775,7 @@ function renderCandidatePanel(c, pipelines) {
   document.getElementById('modal-edit').innerHTML =
     '<div class="form-grid">' +
     '<div class="form-group full"><label>候補者名 *</label><input id="f-name" value="' + (c ? (c.name||'').replace(/"/g,'&quot;') : '') + '" placeholder="例：山田 太郎様"></div>' +
+    '<div class="form-group full" id="file-section-anchor"></div>' +
     '<div class="form-group"><label>担当者</label><select id="f-member"><option value="">未設定</option>' + memberOptions + '</select></div>' +
     '<div class="form-group"><label>フェーズ</label><select id="f-phase"><option value="">未設定</option>' + phaseOptions + '</select></div>' +
     '<div class="form-group"><label>ステータス</label><select id="f-status"><option value="">未設定</option>' + statusOptions + '</select></div>' +
@@ -807,6 +808,13 @@ function renderCandidatePanel(c, pipelines) {
     '<div class="form-group"><label>入社想定日</label><input id="f-expected-join" type="date" value="' + (c ? c.expected_join_date||'' : '') + '"></div>' +
     '<div class="form-group"><label>NextAction日</label><input id="f-next-action-day" type="date" value="' + (c ? c.next_action_day||'' : '') + '"></div>' +
     '<div class="form-group full"><label>ネクストアクション</label><div id="f-next-action" class="md-editor" contenteditable="true"></div></div>' +
+    (c ? (
+      '<div id="pipeline-section" class="form-group full">' +
+      '<div class="section-title" style="margin-top:0;padding-top:0;border-top:none">提案求人（' + pipelines.length + '件）</div>' +
+      '<div style="margin-bottom:8px;text-align:right"><button class="add-job-btn" onclick="openPipelineAdd(\'' + c.id + '\')">＋ 求人追加</button></div>' +
+      '<div class="pipeline-table-wrap">' + pipelineTable + '</div>' +
+      '</div>'
+    ) : '') +
     '<div class="form-group full">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
     '<label>メモ（マークダウン対応・入力しながら装飾されます）</label>' +
@@ -827,13 +835,6 @@ function renderCandidatePanel(c, pipelines) {
     '<div id="f-recommendation" class="md-editor" contenteditable="true" style="min-height:220px"></div>' +
     '</div>' +
     '</div>' +
-    (c ? (
-      '<div id="pipeline-section">' +
-      '<div class="section-title">提案求人（' + pipelines.length + '件）</div>' +
-      '<div style="margin-bottom:8px;text-align:right"><button class="add-job-btn" onclick="openPipelineAdd(\'' + c.id + '\')">＋ 求人追加</button></div>' +
-      '<div class="pipeline-table-wrap">' + pipelineTable + '</div>' +
-      '</div>'
-    ) : '') +
     '<div class="form-actions">' +
     (c && c.deleted_at ? '<button class="btn-delete" style="background:#1baf7a" onclick="restoreCandidate(\'' + c.id + '\')">♻️ 復元</button><button class="btn-delete" onclick="permanentlyDeleteCandidate(\'' + c.id + '\')">🗑 完全に削除</button>' :
       c ? '<button class="btn-delete" onclick="deleteCandidate(\'' + c.id + '\')">🗑 削除（ゴミ箱へ）</button>' : '') +
@@ -897,10 +898,20 @@ function mdRenderLines(el, text) {
 // contenteditable内の現在のプレーンテキストと、カーソル位置（文字オフセット）を取得する
 function mdGetPlainTextAndCaret(el) {
   var sel = window.getSelection();
-  var caretNode = null, caretNodeOffset = 0;
-  if (sel && sel.rangeCount && el.contains(sel.getRangeAt(0).endContainer)) {
-    caretNode = sel.getRangeAt(0).endContainer;
-    caretNodeOffset = sel.getRangeAt(0).endOffset;
+  var caretLineEl = null, caretOffsetInLine = 0;
+  if (sel && sel.rangeCount) {
+    var range = sel.getRangeAt(0);
+    if (el.contains(range.endContainer)) {
+      var containerEl = range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentNode;
+      var lineEl = containerEl && containerEl.closest ? containerEl.closest('.md-line') : null;
+      if (lineEl && el.contains(lineEl)) {
+        var preRange = document.createRange();
+        preRange.selectNodeContents(lineEl);
+        preRange.setEnd(range.endContainer, range.endOffset);
+        caretLineEl = lineEl;
+        caretOffsetInLine = preRange.toString().length;
+      }
+    }
   }
   var lines = el.querySelectorAll(':scope > .md-line');
   if (!lines.length) return { text: el.textContent || '', caret: -1 };
@@ -908,12 +919,8 @@ function mdGetPlainTextAndCaret(el) {
   var caret = -1;
   for (var i = 0; i < lines.length; i++) {
     if (i > 0) text += '\n';
-    var walker = document.createTreeWalker(lines[i], NodeFilter.SHOW_TEXT, null);
-    var node;
-    while (node = walker.nextNode()) {
-      if (node === caretNode) caret = text.length + caretNodeOffset;
-      text += node.textContent;
-    }
+    if (lines[i] === caretLineEl) caret = text.length + caretOffsetInLine;
+    text += lines[i].textContent;
   }
   return { text: text, caret: caret };
 }
@@ -1635,6 +1642,7 @@ function initFileSection(candidateId) {
 
   var sec = document.createElement('div');
   sec.id = 'file-section';
+  sec.className = 'form-group full';
 
   var titleDiv = document.createElement('div');
   titleDiv.className = 'section-title';
@@ -1643,7 +1651,7 @@ function initFileSection(candidateId) {
 
   var listDiv = document.createElement('div');
   listDiv.id = 'file-list';
-  listDiv.style.marginBottom = '8px';
+  listDiv.style.marginBottom = '4px';
   listDiv.textContent = '読み込み中…';
   listDiv.style.fontSize = '12px';
   listDiv.style.color = '#aaa';
@@ -1682,8 +1690,13 @@ function initFileSection(candidateId) {
   uploadDiv.appendChild(fileInput);
 
   sec.appendChild(uploadDiv);
-  var formActionsEl = detailEl.querySelector('.form-actions');
-  if (formActionsEl) { detailEl.insertBefore(sec, formActionsEl); } else { detailEl.appendChild(sec); }
+  var anchorEl = detailEl.querySelector('#file-section-anchor');
+  if (anchorEl) {
+    anchorEl.replaceWith(sec);
+  } else {
+    var formActionsEl = detailEl.querySelector('.form-actions');
+    if (formActionsEl) { detailEl.insertBefore(sec, formActionsEl); } else { detailEl.appendChild(sec); }
+  }
 
   // イベント
   selBtn.addEventListener('click', function(e) {
