@@ -1308,16 +1308,21 @@ async function syncCompanyId() {
 
 function autoSetJoinedStatus() {
   const phase = document.getElementById('pf-phase').value;
+  const acceptIdx = PHASE_ORDER.indexOf('内定承諾');
+  const phaseIdx = PHASE_ORDER.indexOf(phase);
+  const origIdx = PHASE_ORDER.indexOf(currentPipelineOriginalPhase);
+  const isForwardFromAccept = origIdx === acceptIdx && phaseIdx >= acceptIdx; // 内定承諾→入社待ち/入社済みへの前進
   if (phase === '入社済み') {
     document.getElementById('pf-status').value = '終了_入社済み';
   } else if (phase === '内定承諾') {
     document.getElementById('pf-status').value = '終了_内定承諾';
-  } else if (currentPipelineOriginalPhase === '内定承諾' || currentPipelineOriginalPhase === '入社済み') {
+  } else if ((currentPipelineOriginalPhase === '内定承諾' || currentPipelineOriginalPhase === '入社済み') && !isForwardFromAccept) {
     document.getElementById('pf-status').value = '進行中';
   }
   const decisionFields = document.getElementById('pf-decision-fields');
   if (decisionFields) {
-    const willBecomeAccepted = phase === '内定承諾' && phase !== currentPipelineOriginalPhase;
+    // 内定承諾そのもの、または内定承諾を飛び越えて先のフェーズへ一気に進める場合は決定日入力欄を表示する
+    const willBecomeAccepted = phaseIdx >= acceptIdx && origIdx < acceptIdx && phase !== currentPipelineOriginalPhase;
     decisionFields.style.display = willBecomeAccepted ? 'block' : 'none';
     if (willBecomeAccepted && !document.getElementById('pf-decision-input').value) {
       document.getElementById('pf-decision-input').value = today();
@@ -1338,8 +1343,11 @@ async function savePipeline() {
   var jobName = document.getElementById('pf-job-name').value.trim();
   if (!jobName) { alert('求人名を入力してください'); return; }
   var newPhaseValue = document.getElementById('pf-phase').value;
-  var willBecomeAccepted = newPhaseValue === '内定承諾' && newPhaseValue !== currentPipelineOriginalPhase;
-  var willRevertFromAccepted = currentPipelineOriginalPhase === '内定承諾' && newPhaseValue !== '内定承諾';
+  var acceptIdx = PHASE_ORDER.indexOf('内定承諾');
+  var newIdx = PHASE_ORDER.indexOf(newPhaseValue);
+  var origIdx = PHASE_ORDER.indexOf(currentPipelineOriginalPhase);
+  var willBecomeAccepted = newIdx >= acceptIdx && origIdx < acceptIdx && newPhaseValue !== currentPipelineOriginalPhase; // 内定承諾自体、またはそれを飛び越える前進
+  var willRevertFromAccepted = origIdx === acceptIdx && newIdx < acceptIdx; // 内定承諾から前のフェーズへ戻す（本当の取り消し）のみ対象
   var decisionDate = new Date().toISOString();
   var theoreticalSalaryInput = null;
   var hireDateInput = null;
@@ -1391,7 +1399,14 @@ async function savePipeline() {
   }
   if (error) { alert('保存に失敗しました: ' + error.message); return; }
   if (phaseChanged && savedPipelineId) {
-    const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase, changed_at: decisionDate });
+    // 内定承諾を飛び越えて先のフェーズまで一気に進めた場合、内定承諾自体の履歴も欠かさず記録する
+    if (willBecomeAccepted && payload.phase !== '内定承諾') {
+      const { error: acceptHistError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: '内定承諾', changed_at: decisionDate });
+      if (acceptHistError) { alert('内定承諾履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + acceptHistError.message); }
+    }
+    const finalChangedAt = (hireDateInput && (payload.phase === '入社待ち' || payload.phase === '入社済み'))
+      ? new Date(hireDateInput + 'T12:00:00').toISOString() : decisionDate;
+    const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase, changed_at: finalChangedAt });
     if (historyError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + historyError.message); }
   }
   if (willRevertFromAccepted && savedPipelineId && currentPipelineCandidateId) {
@@ -1414,7 +1429,7 @@ async function savePipeline() {
       if (candForReset) Object.assign(candForReset, resetPayload);
     }
   }
-  if (phaseChanged && payload.phase === '内定承諾') {
+  if (phaseChanged && willBecomeAccepted) {
     const cand = DATA.find(function(c) { return c.id === currentPipelineCandidateId; });
     if (cand) {
       const candUpdate = {
