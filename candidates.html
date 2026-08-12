@@ -786,7 +786,7 @@ function renderDetail(c, pipelines) {
 }
 
 function renderEditForm(c) {
-  const memberOptions = MEMBERS.map(function(m) { return '<option value="' + m.id + '"' + (c && c.member_id === m.id ? ' selected' : '') + '>' + m.display_name + '</option>'; }).join('');
+  const memberOptions = MEMBERS.filter(function(m) { return Object.values(MEMBER_MAP).includes(m.name); }).map(function(m) { return '<option value="' + m.id + '"' + (c && c.member_id === m.id ? ' selected' : '') + '>' + m.display_name + '</option>'; }).join('');
   const phaseOptions = PHASE_LIST.map(function(p) { return '<option' + (c && c.phase === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
   const statusOptions = STATUS_LIST.map(function(s) { return '<option' + (c && c.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
   const sourceOptions = SOURCE_LIST.map(function(s) { return '<option' + (c && c.source === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
