@@ -101,6 +101,10 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .detail-value{font-size:13px;color:#14213D}
 .detail-full{grid-column:1/-1}
 .memo-box{background:#f9f9f7;border:1px solid #DEE7F7;border-radius:8px;padding:12px;margin-top:4px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6}
+.modal-edit-input{width:100%;height:32px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;font-size:13px;background:#fff;font-family:inherit;color:#14213D}
+.modal-edit-input:focus{outline:none;border-color:#0D40D9}
+textarea.modal-edit-input{height:auto;padding:8px}
+#modal-save-msg{font-size:12px;color:#0D40D9;margin-right:10px}
 .loading{text-align:center;padding:40px;color:#6B7A99;font-size:14px}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
 </style>
@@ -257,8 +261,10 @@ tr:hover td{background:#fafaf8;cursor:pointer}
     <h2 id="modal-title"></h2>
     <div class="modal-subtitle" id="modal-sub"></div>
     <div class="detail-grid" id="modal-content"></div>
-    <div style="margin-top:16px;text-align:right">
-      <button class="icon-btn" id="modal-delete-btn" style="color:#b3261e;border:1px solid #f0d0d0;border-radius:6px;padding:6px 14px">🗑️ このパイプラインを削除</button>
+    <div style="margin-top:16px;text-align:right;display:flex;align-items:center;justify-content:flex-end">
+      <span id="modal-save-msg"></span>
+      <button class="icon-btn" id="modal-delete-btn" style="color:#b3261e;border:1px solid #f0d0d0;border-radius:6px;padding:6px 14px;margin-right:8px">🗑️ このパイプラインを削除</button>
+      <button id="modal-save-btn" style="background:#14213D;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer">保存</button>
     </div>
   </div>
 </div>
@@ -952,6 +958,7 @@ function lastDayOfNextMonth(hireDate) {
   return toLocalDateStr(nextMonthLastDay);
 }
 
+let currentModalId = null;
 let pendingDecisionPipelineId = null;
 let pendingDecisionSelectEl = null;
 let pendingDecisionOldPhase = null;
@@ -1057,6 +1064,9 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
   renderMonthSummary();
   renderActionList();
   render();
+  if (currentModalId === id && document.getElementById('modal').classList.contains('open')) {
+    openModal(id);
+  }
 }
 
 function openModal(id) {
@@ -1071,21 +1081,78 @@ function openModal(id) {
       '<button class="icon-btn" style="border:1px solid #DEE7F7;border-radius:6px;padding:4px 10px" onclick="saveDecisionDate(\'' + id + '\')">更新</button>' +
       '</div></div>'
     : '';
+  const modalPhaseOpts = '<option value="">未設定</option>' + PIPELINE_PHASE_LIST.map(ph =>
+    '<option' + (ph === p.phase ? ' selected' : '') + '>' + ph + '</option>'
+  ).join('');
+  const modalStatusOpts = '<option value="">未設定</option>' + PIPELINE_STATUS_LIST.map(s =>
+    '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>'
+  ).join('');
   document.getElementById('modal-content').innerHTML = `
-    <div class="detail-item"><div class="detail-label">フェーズ</div><div class="detail-value"><span class="phase-badge ${getPhaseClass(p.phase)}">${p.phase||'-'}</span></div></div>
-    <div class="detail-item"><div class="detail-label">ステータス</div><div class="detail-value">${p.status||'-'}</div></div>
-    <div class="detail-item"><div class="detail-label">NextAction日</div><div class="detail-value">${dateLabel(p.next_action_day)}</div></div>
-    <div class="detail-item"><div class="detail-label">NextActionの内容</div><div class="detail-value">${p.next_action_note||'-'}</div></div>
+    <div class="detail-item"><div class="detail-label">企業名</div><input type="text" list="company-options" id="modal-edit-company" class="modal-edit-input" value="${(p.companies?.name||'').replace(/"/g,'&quot;')}"></div>
+    <div class="detail-item"><div class="detail-label">求人名</div><input type="text" id="modal-edit-jobname" class="modal-edit-input" value="${(p.job_name||'').replace(/"/g,'&quot;').replace(/\n/g,' ')}"></div>
+    <div class="detail-item"><div class="detail-label">フェーズ</div><select id="modal-edit-phase" class="modal-edit-input">${modalPhaseOpts}</select></div>
+    <div class="detail-item"><div class="detail-label">ステータス</div><select id="modal-edit-status" class="modal-edit-input">${modalStatusOpts}</select></div>
+    <div class="detail-item"><div class="detail-label">NextAction日</div><input type="date" id="modal-edit-next-action-day" class="modal-edit-input" value="${p.next_action_day||''}"></div>
+    <div class="detail-item"><div class="detail-label">NextActionの内容</div><input type="text" id="modal-edit-next-action-note" class="modal-edit-input" value="${(p.next_action_note||'').replace(/"/g,'&quot;')}"></div>
     <div class="detail-item"><div class="detail-label">推薦日</div><div class="detail-value">${fmtDate(p.recommended_at)}</div></div>
     <div class="detail-item"><div class="detail-label">売上見込み</div><div class="detail-value">${fmtSalary(p.candidates?.revenue_forecast)}</div></div>
     <div class="detail-item"><div class="detail-label">希望年収</div><div class="detail-value">${fmtSalary(p.candidates?.desired_salary)}</div></div>
     <div class="detail-item"><div class="detail-label">流入経路</div><div class="detail-value">${p.candidates?.source||'-'}</div></div>
     <div class="detail-item"><div class="detail-label">登録日</div><div class="detail-value">${fmtDate(p.created_at)}</div></div>
-    ${p.memo ? `<div class="detail-item detail-full"><div class="detail-label">メモ</div><div class="memo-box">${p.memo}</div></div>` : ''}
+    <div class="detail-item detail-full"><div class="detail-label">メモ</div><textarea id="modal-edit-memo" class="modal-edit-input" rows="3">${p.memo||''}</textarea></div>
     ${acceptHistoryHtml}
   `;
   document.getElementById('modal-delete-btn').onclick = function() { closeModal(); deletePipelineRow(id); };
+  document.getElementById('modal-save-btn').onclick = function() { saveModalEdits(id); };
+  document.getElementById('modal-save-msg').textContent = '';
+  currentModalId = id;
   document.getElementById('modal').classList.add('open');
+}
+
+async function saveModalEdits(id) {
+  const p = DATA.find(x => x.id === id);
+  if (!p) return;
+  const btn = document.getElementById('modal-save-btn');
+  const msg = document.getElementById('modal-save-msg');
+  btn.disabled = true;
+  msg.textContent = '保存中…';
+
+  const newCompany = document.getElementById('modal-edit-company').value;
+  const newJobName = document.getElementById('modal-edit-jobname').value;
+  const newStatus = document.getElementById('modal-edit-status').value;
+  const newNextActionDay = document.getElementById('modal-edit-next-action-day').value;
+  const newNextActionNote = document.getElementById('modal-edit-next-action-note').value;
+  const newMemo = document.getElementById('modal-edit-memo').value;
+  const newPhase = document.getElementById('modal-edit-phase').value;
+  const oldPhase = p.phase;
+
+  if ((newCompany||'').trim() !== (p.companies?.name||'')) {
+    await inlineSaveCompany(id, newCompany);
+  }
+  if (newJobName !== (p.job_name||'')) {
+    await inlineSave(id, 'job_name', newJobName);
+  }
+  if (newStatus !== (p.status||'')) {
+    await inlineSave(id, 'status', newStatus || null);
+  }
+  if (newNextActionDay !== (p.next_action_day||'')) {
+    await inlineSave(id, 'next_action_day', newNextActionDay || null);
+  }
+  if (newNextActionNote !== (p.next_action_note||'')) {
+    await inlineSave(id, 'next_action_note', newNextActionNote);
+  }
+  if (newMemo !== (p.memo||'')) {
+    await inlineSave(id, 'memo', newMemo);
+  }
+
+  btn.disabled = false;
+  if (newPhase !== (oldPhase||'')) {
+    // フェーズ変更は既存のinlinePhaseSaveに委譲する（内定承諾時の追加入力モーダル等の分岐を再利用するため）
+    const phaseSelectEl = document.getElementById('modal-edit-phase');
+    inlinePhaseSave(id, newPhase || null, phaseSelectEl);
+  }
+  msg.textContent = '保存しました';
+  setTimeout(() => { if (msg.textContent === '保存しました') msg.textContent = ''; }, 2500);
 }
 
 function getAcceptHistoryRecord(pipelineId) {
@@ -1113,7 +1180,7 @@ async function saveDecisionDate(pipelineId) {
   openModal(pipelineId);
 }
 
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); currentModalId = null; }
 document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 </script>
 </body>
