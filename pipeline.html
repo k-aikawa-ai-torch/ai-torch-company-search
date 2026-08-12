@@ -125,15 +125,15 @@ textarea.modal-edit-input{height:auto;padding:8px}
 <div id="app">
   <nav class="app-sidebar">
     <a class="sb-logo" href="index.html"><img src="assets/torch-blue-circle.jpg" alt="AI torch"></a>
-    <a class="sb-item" href="index.html"><span class="sb-icon">⌂</span><span class="sb-label">Home</span></a>
-    <a class="sb-item" href="companies.html"><span class="sb-icon">◧</span><span class="sb-label">企業検索</span></a>
-    <a class="sb-item" href="candidates.html"><span class="sb-icon">☰</span><span class="sb-label">候補者管理</span></a>
-    <a class="sb-item active" href="pipeline.html"><span class="sb-icon">◎</span><span class="sb-label">パイプライン</span></a>
-    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html"><span class="sb-icon">▤</span><span class="sb-label">ダッシュボード</span></a>
+    <a class="sb-item" href="index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
+    <a class="sb-item" href="companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
+    <a class="sb-item" href="candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
+    <a class="sb-item active" href="pipeline.html"><span class="sb-icon">🅿️</span><span class="sb-label">パイプライン</span></a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/dashboard.html"><span class="sb-icon">🧭</span><span class="sb-label">ダッシュボード</span></a>
     <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/kpi.html"><span class="sb-icon">📊</span><span class="sb-label">詳細KPI</span></a>
     <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-dashboard/financials.html"><span class="sb-icon">💰</span><span class="sb-label">予実管理</span></a>
     <div class="sb-spacer"></div>
-    <div class="sb-item" onclick="doLogout()"><span class="sb-icon">⏻</span><span class="sb-label">ログアウト</span></div>
+    <div class="sb-item" onclick="doLogout()"><span class="sb-icon">🚪</span><span class="sb-label">ログアウト</span></div>
   </nav>
   <div class="app-body">
     <div class="top-strip">
@@ -962,23 +962,15 @@ let currentModalId = null;
 let pendingDecisionPipelineId = null;
 let pendingDecisionSelectEl = null;
 let pendingDecisionOldPhase = null;
-let pendingDecisionFinalPhase = null;
 
 function inlinePhaseSave(id, newPhase, selectEl) {
   const p = DATA.find(x => x.id === id);
   if (!p) return;
   const oldPhase = p.phase;
-  const acceptIdx = PHASE_ORDER.indexOf('内定承諾');
-  const oldIdx = PHASE_ORDER.indexOf(oldPhase);
-  const newIdx = PHASE_ORDER.indexOf(newPhase);
-  // 内定承諾そのものへの変更、または内定承諾を飛び越えて先のフェーズへ一気に進める変更（かつ内定承諾の履歴がまだない）場合は、
-  // 決定日入力ダイアログを必ず挟み、内定承諾の記録・粗利計算を欠かさず行う
-  const crossesAccept = newPhase && newPhase !== oldPhase && newIdx >= acceptIdx && oldIdx < acceptIdx && !getAcceptHistoryRecord(id);
-  if (newPhase && newPhase !== oldPhase && (newPhase === '内定承諾' || crossesAccept)) {
+  if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾') {
     pendingDecisionPipelineId = id;
     pendingDecisionSelectEl = selectEl || null;
     pendingDecisionOldPhase = oldPhase;
-    pendingDecisionFinalPhase = newPhase; // '内定承諾'自体、またはそれより先のフェーズ
     document.getElementById('dm-decision-date').value = today();
     document.getElementById('dm-theoretical-salary').value = '';
     document.getElementById('dm-hire-date').value = '';
@@ -993,13 +985,11 @@ function cancelDecisionModal() {
   document.getElementById('decision-modal').classList.remove('open');
   pendingDecisionPipelineId = null;
   pendingDecisionSelectEl = null;
-  pendingDecisionFinalPhase = null;
 }
 
 async function confirmDecisionModal() {
   const id = pendingDecisionPipelineId;
   const oldPhase = pendingDecisionOldPhase;
-  const finalPhase = pendingDecisionFinalPhase || '内定承諾';
   if (!id) return;
   const dateVal = document.getElementById('dm-decision-date').value;
   const decisionDate = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
@@ -1009,24 +999,14 @@ async function confirmDecisionModal() {
   document.getElementById('decision-modal').classList.remove('open');
   pendingDecisionPipelineId = null;
   pendingDecisionSelectEl = null;
-  pendingDecisionFinalPhase = null;
-  // まず内定承諾として正しく記録する（履歴・粗利計算等）
   await proceedPhaseSave(id, '内定承諾', oldPhase, decisionDate, theoreticalSalaryInput, hireDateInput);
-  // 一気に先のフェーズまで進める指定だった場合、続けてそこまで進める
-  if (finalPhase !== '内定承諾') {
-    const finalChangedAt = hireDateInput ? new Date(hireDateInput + 'T12:00:00').toISOString() : new Date().toISOString();
-    await proceedPhaseSave(id, finalPhase, '内定承諾', finalChangedAt, null, hireDateInput);
-  }
 }
 
 async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoreticalSalaryInput, hireDateInput) {
   const p = DATA.find(x => x.id === id);
   if (!p) return;
-  const acceptIdx2 = PHASE_ORDER.indexOf('内定承諾');
-  const newIdx2 = PHASE_ORDER.indexOf(newPhase);
-  const isForwardFromAccept = newIdx2 >= acceptIdx2; // 内定承諾以降（入社待ち・入社済み含む）への前進は取り消しではない
-  // 内定承諾から前のフェーズへ戻した場合のみ、誤登録の取り消しとして決定履歴・粗利等をリセットする
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && !isForwardFromAccept && p.candidate_id) {
+  // 内定承諾から他フェーズへ戻した場合、誤登録の取り消しとして決定履歴・粗利等をリセットする
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && p.candidate_id) {
     if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利・フェーズ/ステータスの記録も登録前の状態に戻りますがよろしいですか？')) return;
     const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', id).eq('phase', '内定承諾');
     if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
@@ -1046,7 +1026,7 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   if (hireDateInput) payload.hire_date = hireDateInput;
   if (hireDateInput && !p.payment_date) payload.payment_date = lastDayOfNextMonth(hireDateInput);
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && !isForwardFromAccept) payload.status = '進行中';
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && newPhase !== '入社済み') payload.status = '進行中';
   // 入社済みになったら自動的にステータスも終了_入社済みにする
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
   else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
