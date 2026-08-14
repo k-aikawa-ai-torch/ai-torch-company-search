@@ -1031,24 +1031,81 @@ function initMdEditor(id) {
   var el = document.getElementById(id);
   if (!el) return;
   var composing = false;
+  // innerHTMLを毎回組み立て直す方式のため、ブラウザ標準のundo履歴は当てにならない（途中で壊れる）。
+  // そのため自前でundo/redoの履歴を持ち、Ctrl+Z / Ctrl+Y（Macは⌘+Z / ⌘+Shift+Z）を独自に処理する。
+  var undoStack = [];
+  var redoStack = [];
+  var lastPushTime = 0;
+  var CHECKPOINT_MS = 500; // これ未満の間隔の連続入力は1つのundoステップにまとめる
+
+  function snapshot() {
+    var s = mdGetPlainTextAndCaret(el);
+    return { text: s.text, caret: s.caret };
+  }
+  function pushUndo(force) {
+    var now = Date.now();
+    var snap = snapshot();
+    var last = undoStack[undoStack.length - 1];
+    if (last && last.text === snap.text) return; // 内容が変わっていなければ積まない
+    if (!force && last && (now - lastPushTime) < CHECKPOINT_MS) {
+      undoStack[undoStack.length - 1] = snap; // 短い間隔の連続入力は直前のステップを更新して1つにまとめる
+    } else {
+      undoStack.push(snap);
+      if (undoStack.length > 100) undoStack.shift();
+    }
+    lastPushTime = now;
+    redoStack.length = 0;
+  }
+  undoStack.push(snapshot()); // 編集開始時点を初期状態として積んでおく
+  lastPushTime = Date.now();
+
   el.addEventListener('compositionstart', function() { composing = true; });
   el.addEventListener('compositionend', function() {
     composing = false;
     mdRerender(el);
+    pushUndo(true);
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   el.addEventListener('input', function() {
     if (composing) return;
     mdRerender(el);
+    pushUndo(false);
   });
   el.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !composing) mdHandleEnter(el, e);
+    var isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z');
+    var isRedo = (e.ctrlKey || e.metaKey) && ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z')));
+    if (isUndo) {
+      e.preventDefault();
+      if (undoStack.length > 1) {
+        redoStack.push(undoStack.pop());
+        var prev = undoStack[undoStack.length - 1];
+        mdRenderLines(el, prev.text);
+        mdSetCaret(el, prev.caret);
+        lastPushTime = Date.now();
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return;
+    }
+    if (isRedo) {
+      e.preventDefault();
+      if (redoStack.length) {
+        var next = redoStack.pop();
+        undoStack.push(next);
+        mdRenderLines(el, next.text);
+        mdSetCaret(el, next.caret);
+        lastPushTime = Date.now();
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return;
+    }
+    if (e.key === 'Enter' && !composing) { mdHandleEnter(el, e); pushUndo(true); }
     if (e.key === 'Tab') {
       e.preventDefault();
       var state = mdGetPlainTextAndCaret(el);
       var newText = state.text.substring(0, state.caret) + '  ' + state.text.substring(state.caret);
       mdRenderLines(el, newText);
       mdSetCaret(el, state.caret + 2);
+      pushUndo(true);
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }
   });
