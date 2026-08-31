@@ -375,21 +375,23 @@ async function fetchAllRange(table, select) {
 }
 
 async function loadData() {
-  const [{ data, error }, membersRes, companiesRes, phaseHistory, viewsRes, feeRatesRes] = await Promise.all([
-    sb.from('pipeline')
-      .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast,revenue_yomi,decision_yomi,gross_profit,gross_profit_calculated_at,status), companies(name)')
-      .order('created_at', { ascending: false }),
+  const [data, membersRes, companiesRes, phaseHistory, viewsRes, feeRatesRes] = await Promise.all([
+    // pipelineは1000件を超えるため、Supabaseのデフォルト取得上限(1000件)に引っかからないよう
+    // fetchAllRangeで.range()ページングして全件取得する（以前はorder('created_at')の単発selectで
+    // 1000件しか取れず、ヘッダーの件数表示が実件数より少なくなっていたバグの修正）
+    fetchAllRange('pipeline', '*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast,revenue_yomi,decision_yomi,gross_profit,gross_profit_calculated_at,status), companies(name)'),
     sb.from('members').select('*'),
     sb.from('companies').select('id,name'),
     fetchAllRange('pipeline_phase_history', '*'),
     sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name'),
     sb.from('media_fee_rates').select('*'),
   ]);
-  if (error) {
+  if (!data) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="loading">読み込み失敗</td></tr>';
     return;
   }
-  DATA = data;
+  // fetchAllRangeはorder('id')でページングしているため、表示上は元の並び順(created_at降順)に揃え直す
+  DATA = data.slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
   ALL_MEMBERS = membersRes.data || [];
   ALL_COMPANIES = companiesRes.data || [];
   PHASE_HISTORY = phaseHistory || [];
