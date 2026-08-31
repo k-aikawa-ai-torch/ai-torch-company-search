@@ -798,7 +798,7 @@ async function deletePipelineRow(id) {
   DATA = DATA.filter(x => x.id !== id);
   renderFunnel();
   renderMonthSummary();
-  renderActionList();
+  renderActionList(true); // 削除操作でページが「今日」の位置まで自動スクロールされないようにする
   render();
 }
 
@@ -958,7 +958,8 @@ async function inlineSave(id, field, value) {
     if (field === 'company_id') { p.companies = ALL_COMPANIES.find(c => c.id === value) || null; }
   }
   renderMonthSummary();
-  renderActionList();
+  renderActionList(true); // 【真因】ここが原因で、通常のセル編集のたびにページが日別アクションリストの「今日」位置まで自動スクロールされ、
+                           // パイプライン一覧が画面上で先頭（一覧の上端）に戻ったように見えていた
 }
 
 function pipelinePhaseToCandidatePhase(pipelinePhase) {
@@ -1084,7 +1085,7 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
   }
   renderFunnel();
   renderMonthSummary();
-  renderActionList();
+  renderActionList(true); // 同上：フェーズ変更後も「今日」への自動スクロールを抑止する
   render();
   if (currentModalId === id && document.getElementById('modal').classList.contains('open')) {
     openModal(id);
