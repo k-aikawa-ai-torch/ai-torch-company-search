@@ -841,6 +841,11 @@ function toggleSortDir(which) {
 }
 
 function render() {
+  // フェーズ変更等でrender()が呼ばれるたびにテーブル全体（#tbody）を再描画するとスクロール位置がリセットされてしまうため、
+  // .table-wrapのscrollTopを保存し、再描画後に復元する（financials.htmlのrenderKeepScrollと同じ考え方）
+  const tableWrap = document.querySelector('.table-wrap');
+  const prevScrollTop = tableWrap ? tableWrap.scrollTop : 0;
+
   let res = getFiltered();
   const sort1 = document.getElementById('sort1').value;
   const sort2 = document.getElementById('sort2').value;
@@ -878,6 +883,7 @@ function render() {
   document.getElementById('count').textContent = res.length + '件';
   if (!res.length) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="empty">該当する案件がありません</td></tr>';
+    if (tableWrap) tableWrap.scrollTop = prevScrollTop;
     return;
   }
   document.getElementById('tbody').innerHTML = res.map(p => {
@@ -905,6 +911,7 @@ function render() {
     </tr>`;
   }).join('');
   updateMemberColumnVisibility();
+  if (tableWrap) tableWrap.scrollTop = prevScrollTop;
 }
 
 function updateMemberColumnVisibility() {

@@ -89,8 +89,11 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .markdown-preview p{margin:4px 0}
 .pipeline-mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 .pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#6B7A99;padding:5px 8px;text-align:left;border-bottom:1px solid #DEE7F7}
-.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #FFFFFF;vertical-align:middle}
+.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #FFFFFF;vertical-align:middle;max-width:0;overflow:hidden}
 .pipeline-mini-table tr:last-child td{border-bottom:none}
+.pipeline-mini-table td input,.pipeline-mini-table td select{width:100%;height:26px;padding:0 5px;border:1px solid transparent;border-radius:4px;font-size:11.5px;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pipeline-mini-table td input:hover,.pipeline-mini-table td select:hover{border-color:#DEE7F7;background:#fff}
+.pipeline-mini-table td input:focus,.pipeline-mini-table td select:focus{border-color:#0D40D9;background:#fff;outline:none}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group.full{grid-column:1/-1}
@@ -366,9 +369,23 @@ tr:hover td{background:#fafaf8;cursor:pointer}
   </div>
 </div>
 
+<div id="pipeline-decision-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1200;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:90%;max-width:420px;padding:24px">
+    <div class="modal-header"><span>内定承諾の登録</span></div>
+    <div class="form-group" style="margin-bottom:12px"><label style="display:block;font-size:11px;color:#6B7A99;margin-bottom:4px">決定日</label><input type="date" id="pdm-decision-date" style="height:40px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;width:100%"></div>
+    <div class="form-group" style="margin-bottom:12px"><label style="display:block;font-size:11px;color:#6B7A99;margin-bottom:4px">理論年収（未入力なら売上見込みを基準に設定します）</label><input type="number" id="pdm-theoretical-salary" style="height:40px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;width:100%"></div>
+    <div class="form-group" style="margin-bottom:16px"><label style="display:block;font-size:11px;color:#6B7A99;margin-bottom:4px">入社日（未定なら空欄でOK・後から入力もできます）</label><input type="date" id="pdm-hire-date" style="height:40px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;width:100%"></div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="cancelPipelineDecisionModal()">キャンセル</button>
+      <button class="btn-save" onclick="confirmPipelineDecisionModal()">登録</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -389,6 +406,10 @@ let currentId = null;
 let currentPipelineId = null;
 let currentPipelineCandidateId = null;
 let currentPipelineOriginalPhase = null;
+let CURRENT_PIPELINES = []; // 現在開いている候補者詳細パネルに表示中のパイプライン一覧（直接編集の参照用）
+let pendingPipelineDecisionId = null;
+let pendingPipelineDecisionSelectEl = null;
+let pendingPipelineDecisionOldPhase = null;
 let memoMode = 'edit';
 let formDirty = false;
 let autosaveTimer = null;
@@ -705,7 +726,8 @@ async function showDetailModal(id) {
   document.getElementById('modal-title').textContent = c ? c.name : '候補者詳細';
   const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', id).order('created_at', { ascending: false });
   if (currentId !== id) return; // 待機中に閉じられた/切り替わっていたら描画しない
-  renderCandidatePanel(c, pipelines || []);
+  CURRENT_PIPELINES = pipelines || [];
+  renderCandidatePanel(c, CURRENT_PIPELINES);
   document.getElementById('modal').classList.add('open');
   formDirty = false;
 }
@@ -727,6 +749,7 @@ function copyDetailLink() {
 function openAdd() {
   currentId = null;
   formDirty = false;
+  CURRENT_PIPELINES = [];
   document.getElementById('modal-title').textContent = '候補者追加';
   renderCandidatePanel(null, []);
   const me = MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
@@ -737,25 +760,38 @@ function openAdd() {
   document.getElementById('modal').classList.add('open');
 }
 
+// パイプライン簡易テーブル：企業名・求人名・フェーズ・ステータス・NextAction日・アクション内容・メモをその場で直接編集できる
+// （フェーズを「内定承諾」にした場合のみ、決定日等を入力するミニモーダルを挟む。その他の細かい項目（求人URL・推薦日・
+// 　決定日の修正・削除）は従来どおり「詳細」ボタンから開くフルの編集モーダルで行う）
 function renderPipelineTableHtml(pipelines) {
   let pipelineRows = '';
   (pipelines || []).forEach(function(p) {
-    const jobName = (p.job_name || '').replace(/\n/g, ' ');
-    const jobLink = p.job_url ? '<a href="' + p.job_url + '" target="_blank" style="color:#14213D">' + jobName + '</a>' : jobName;
+    const jobName = (p.job_name || '').replace(/\n/g, ' ').replace(/"/g,'&quot;');
     const companyName = p.companies ? p.companies.name : '';
-    pipelineRows += '<tr>' +
-      '<td style="color:#666;font-size:11px;white-space:nowrap">' + (companyName || '-') + '</td>' +
-      '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + jobLink + '</td>' +
-      '<td><span class="phase-badge ' + getPhaseClass(p.phase) + '">' + (p.phase||'-') + '</span></td>' +
-      '<td style="color:#666;font-size:11px">' + (p.status||'-') + '</td>' +
-      '<td style="white-space:nowrap">' + fmtDate(p.next_action_day) + '</td>' +
-      '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.next_action_note||'-') + '</td>' +
-      '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666">' + (p.memo||'').replace(/\n/g,' ') + '</td>' +
-      '<td><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">編集</button></td>' +
+    const memo = (p.memo || '').replace(/\n/g, ' ');
+    const phaseOpts = '<option value="">未設定</option>' + PIPELINE_PHASE_LIST.map(function(ph) {
+      return '<option' + (ph === p.phase ? ' selected' : '') + '>' + ph + '</option>';
+    }).join('');
+    const statusOpts = '<option value="">未設定</option>' + PIPELINE_STATUS_LIST.map(function(s) {
+      return '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>';
+    }).join('');
+    pipelineRows += '<tr data-pipeline-id="' + p.id + '">' +
+      '<td><input type="text" list="pipeline-mini-company-options" value="' + (companyName||'').replace(/"/g,'&quot;') + '" placeholder="企業名で検索/新規入力" onchange="inlineSavePipelineCompany(\'' + p.id + '\',this.value)"></td>' +
+      '<td><div style="display:flex;align-items:center;gap:2px">' +
+        '<input type="text" style="flex:1" value="' + jobName + '" onchange="inlineSavePipelineField(\'' + p.id + '\',\'job_name\',this.value)">' +
+        (p.job_url ? '<a href="' + p.job_url + '" target="_blank" title="求人URLを開く" style="flex-shrink:0;font-size:12px;text-decoration:none">🔗</a>' : '') +
+      '</div></td>' +
+      '<td><select onchange="inlinePipelinePhaseSave(\'' + p.id + '\',this.value,this)">' + phaseOpts + '</select></td>' +
+      '<td><select onchange="inlineSavePipelineField(\'' + p.id + '\',\'status\',this.value||null)">' + statusOpts + '</select></td>' +
+      '<td><input type="date" value="' + (p.next_action_day||'') + '" onchange="inlineSavePipelineField(\'' + p.id + '\',\'next_action_day\',this.value||null)"></td>' +
+      '<td><input type="text" value="' + (p.next_action_note||'').replace(/"/g,'&quot;') + '" onchange="inlineSavePipelineField(\'' + p.id + '\',\'next_action_note\',this.value)" placeholder="やること"></td>' +
+      '<td><input type="text" value="' + memo.replace(/"/g,'&quot;') + '" onchange="inlineSavePipelineField(\'' + p.id + '\',\'memo\',this.value)" title="' + memo.replace(/"/g,'&quot;') + '"></td>' +
+      '<td style="white-space:nowrap"><button class="mini-btn" onclick="openPipelineEdit(\'' + p.id + '\')">詳細</button></td>' +
       '</tr>';
   });
+  const datalistHtml = '<datalist id="pipeline-mini-company-options">' + ALL_COMPANIES.map(function(c){ return '<option value="' + c.name.replace(/"/g,'&quot;') + '">'; }).join('') + '</datalist>';
   return (pipelines || []).length > 0
-    ? '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    ? datalistHtml + '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
     : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
 }
 
@@ -766,10 +802,156 @@ async function refreshPipelineSection(candidateId) {
   if (!section) return;
   const { data: pipelines } = await sb.from('pipeline').select('*, companies(name)').eq('candidate_id', candidateId).order('created_at', { ascending: false });
   if (candidateId !== currentId) return;
+  CURRENT_PIPELINES = pipelines || [];
   const titleEl = section.querySelector('.section-title');
-  if (titleEl) titleEl.textContent = '提案求人（' + (pipelines || []).length + '件）';
+  if (titleEl) titleEl.textContent = '提案求人（' + CURRENT_PIPELINES.length + '件）';
   const wrapEl = section.querySelector('.pipeline-table-wrap');
-  if (wrapEl) wrapEl.innerHTML = renderPipelineTableHtml(pipelines || []);
+  if (wrapEl) wrapEl.innerHTML = renderPipelineTableHtml(CURRENT_PIPELINES);
+}
+
+// ------- パイプライン簡易テーブルの直接編集（inline edit） -------
+
+// 企業名・求人名・ステータス・NextAction日・アクション内容・メモ等、フェーズ以外の単純な項目の直接保存
+async function inlineSavePipelineField(pipelineId, field, value) {
+  const payload = { [field]: value, updated_at: new Date().toISOString() };
+  const { error } = await sb.from('pipeline').update(payload).eq('id', pipelineId);
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  const p = CURRENT_PIPELINES.find(function(x) { return x.id === pipelineId; });
+  if (p) p[field] = value;
+}
+
+// 企業名は入力補完(datalist)で既存企業に紐付け、リストにない名前なら新規企業として登録するか確認する
+async function inlineSavePipelineCompany(pipelineId, name) {
+  name = (name || '').trim();
+  if (!name) { await inlineSavePipelineField(pipelineId, 'company_id', null); return; }
+  let match = ALL_COMPANIES.find(function(c) { return c.name === name; });
+  if (!match) {
+    if (!confirm('「' + name + '」は企業リストに存在しません。新規企業として登録しますか？')) {
+      if (currentId) refreshPipelineSection(currentId); // 入力を元の値に戻す
+      return;
+    }
+    const { data, error: insErr } = await sb.from('companies').insert({ name: name }).select().single();
+    if (insErr) { alert('企業の登録に失敗しました: ' + insErr.message); return; }
+    match = data;
+    ALL_COMPANIES.push(match);
+  }
+  const p = CURRENT_PIPELINES.find(function(x) { return x.id === pipelineId; });
+  if (p) p.companies = { name: match.name };
+  await inlineSavePipelineField(pipelineId, 'company_id', match.id);
+}
+
+// フェーズの直接変更。「内定承諾」に新たに到達する場合は決定日等を入力するミニモーダルを挟み、
+// 「内定承諾」から前のフェーズへ戻す場合は取り消しの確認を行う（pipeline.htmlの挙動に準拠）
+function inlinePipelinePhaseSave(pipelineId, newPhase, selectEl) {
+  const p = CURRENT_PIPELINES.find(function(x) { return x.id === pipelineId; });
+  if (!p) return;
+  const oldPhase = p.phase;
+  if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾') {
+    pendingPipelineDecisionId = pipelineId;
+    pendingPipelineDecisionSelectEl = selectEl || null;
+    pendingPipelineDecisionOldPhase = oldPhase;
+    document.getElementById('pdm-decision-date').value = today();
+    document.getElementById('pdm-theoretical-salary').value = '';
+    document.getElementById('pdm-hire-date').value = '';
+    document.getElementById('pipeline-decision-modal').style.display = 'flex';
+    return;
+  }
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾') {
+    if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) {
+      if (selectEl) selectEl.value = oldPhase || '';
+      return;
+    }
+  }
+  proceedPipelinePhaseSave(pipelineId, newPhase, oldPhase, new Date().toISOString(), null, null);
+}
+
+function cancelPipelineDecisionModal() {
+  if (pendingPipelineDecisionSelectEl) pendingPipelineDecisionSelectEl.value = pendingPipelineDecisionOldPhase || '';
+  document.getElementById('pipeline-decision-modal').style.display = 'none';
+  pendingPipelineDecisionId = null;
+  pendingPipelineDecisionSelectEl = null;
+}
+document.getElementById('pipeline-decision-modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('pipeline-decision-modal')) cancelPipelineDecisionModal();
+});
+
+async function confirmPipelineDecisionModal() {
+  const id = pendingPipelineDecisionId;
+  const oldPhase = pendingPipelineDecisionOldPhase;
+  if (!id) return;
+  const dateVal = document.getElementById('pdm-decision-date').value;
+  if (!dateVal) { alert('決定日を入力してください'); return; }
+  const decisionDate = new Date(dateVal + 'T12:00:00').toISOString();
+  const salaryVal = document.getElementById('pdm-theoretical-salary').value;
+  const theoreticalSalaryInput = salaryVal ? parseFloat(salaryVal) : null;
+  const hireDateInput = document.getElementById('pdm-hire-date').value || null;
+  document.getElementById('pipeline-decision-modal').style.display = 'none';
+  pendingPipelineDecisionId = null;
+  pendingPipelineDecisionSelectEl = null;
+  await proceedPipelinePhaseSave(id, '内定承諾', oldPhase, decisionDate, theoreticalSalaryInput, hireDateInput);
+}
+
+// フェーズ変更の実処理：pipeline本体の更新、pipeline_phase_historyへの記録、
+// 内定承諾に伴う候補者側（決定ヨミ・売上ヨミ・理論年収・粗利）の自動更新、
+// および内定承諾を取り消した場合の候補者側のロールバックを行う
+async function proceedPipelinePhaseSave(pipelineId, newPhase, oldPhase, decisionDate, theoreticalSalaryInput, hireDateInput) {
+  const p = CURRENT_PIPELINES.find(function(x) { return x.id === pipelineId; });
+  if (!p) return;
+  const candidateId = p.candidate_id;
+  const c = candidateId ? DATA.find(function(x) { return x.id === candidateId; }) : null;
+
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && candidateId) {
+    const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', pipelineId).eq('phase', '内定承諾');
+    if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
+    const resetPayload = {
+      gross_profit: null, gross_profit_fee_rate: null, gross_profit_calculated_at: null,
+      decision_yomi: null, revenue_yomi: null, theoretical_salary: null,
+      phase: pipelinePhaseToCandidatePhase(newPhase), status: '進行中',
+    };
+    if (isSenkouNowOrLater(resetPayload.phase) && (!c || !c.senkou_now_at)) {
+      resetPayload.senkou_now_at = new Date().toISOString();
+    }
+    const { error: resetError } = await sb.from('candidates').update(resetPayload).eq('id', candidateId);
+    if (resetError) { alert('候補者データのリセットに失敗しました: ' + resetError.message); return; }
+    if (c) Object.assign(c, resetPayload);
+  }
+
+  const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
+  if (hireDateInput) payload.hire_date = hireDateInput;
+  if (hireDateInput && !p.payment_date) payload.payment_date = lastDayOfNextMonth(hireDateInput);
+  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && newPhase !== '入社済み') payload.status = '進行中';
+  if (newPhase === '入社済み') payload.status = '終了_入社済み';
+  else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
+  const { error } = await sb.from('pipeline').update(payload).eq('id', pipelineId);
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  Object.assign(p, payload);
+
+  if (newPhase && newPhase !== oldPhase) {
+    const { error: histError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: pipelineId, phase: newPhase, changed_at: decisionDate });
+    if (histError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + histError.message); }
+  }
+
+  if (newPhase && newPhase !== oldPhase && newPhase === '内定承諾' && candidateId && c) {
+    const candUpdate = {
+      phase: '内定承諾歓喜',
+      status: '終了_承諾済み（フォローしようね）',
+      decision_yomi: '100%',
+      revenue_yomi: c.revenue_forecast || null,
+      theoretical_salary: theoreticalSalaryInput != null ? theoreticalSalaryInput : (c.revenue_forecast || null),
+    };
+    if (!c.senkou_now_at) candUpdate.senkou_now_at = decisionDate;
+    const gp = calcGrossProfit(c.revenue_forecast, c.source);
+    if (gp) {
+      candUpdate.gross_profit = gp.amount;
+      candUpdate.gross_profit_fee_rate = gp.rate;
+      candUpdate.gross_profit_calculated_at = decisionDate;
+    }
+    const { error: gpError } = await sb.from('candidates').update(candUpdate).eq('id', candidateId);
+    if (gpError) { alert('候補者データの自動更新に失敗しました: ' + gpError.message); }
+    else { Object.assign(c, candUpdate); }
+  }
+
+  if (currentId) refreshPipelineSection(currentId);
 }
 
 function renderCandidatePanel(c, pipelines) {
@@ -1537,9 +1719,13 @@ async function syncCompanyId() {
 
 function autoSetJoinedStatus() {
   const phase = document.getElementById('pf-phase').value;
-  const acceptIdx = PHASE_ORDER.indexOf('内定承諾');
-  const phaseIdx = PHASE_ORDER.indexOf(phase);
-  const origIdx = PHASE_ORDER.indexOf(currentPipelineOriginalPhase);
+  // 【バグ修正】ここで比較しているのはパイプラインのフェーズ（PIPELINE_PHASE_LIST）であり、
+  // 候補者のフェーズ一覧であるPHASE_ORDERには「内定承諾」という文字列が存在しない（候補者側は「内定承諾歓喜」）。
+  // 誤ってPHASE_ORDERで判定していたため、常にindexOf()が-1同士の比較となり「内定承諾」への到達を
+  // 一度も検知できていなかった（決定日入力欄が表示されない・候補者側の自動更新が走らないバグの原因）。
+  const acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
+  const phaseIdx = PIPELINE_PHASE_LIST.indexOf(phase);
+  const origIdx = PIPELINE_PHASE_LIST.indexOf(currentPipelineOriginalPhase);
   const isForwardFromAccept = origIdx === acceptIdx && phaseIdx >= acceptIdx; // 内定承諾→入社待ち/入社済みへの前進
   if (phase === '入社済み') {
     document.getElementById('pf-status').value = '終了_入社済み';
@@ -1572,9 +1758,13 @@ async function savePipeline() {
   var jobName = document.getElementById('pf-job-name').value.trim();
   if (!jobName) { alert('求人名を入力してください'); return; }
   var newPhaseValue = document.getElementById('pf-phase').value;
-  var acceptIdx = PHASE_ORDER.indexOf('内定承諾');
-  var newIdx = PHASE_ORDER.indexOf(newPhaseValue);
-  var origIdx = PHASE_ORDER.indexOf(currentPipelineOriginalPhase);
+  // 【バグ修正】autoSetJoinedStatus()と同じ理由で、パイプラインのフェーズ判定にはPIPELINE_PHASE_LISTを使う
+  // （PHASE_ORDERは候補者側のフェーズ一覧で「内定承諾」という文字列を含まないため、修正前は常にacceptIdx/newIdx/origIdxが
+  // 　-1同士になり、内定承諾への到達・取り消しのいずれも検知できず、候補者側のgross_profit等の自動更新が
+  // 　一度も走っていなかった）
+  var acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
+  var newIdx = PIPELINE_PHASE_LIST.indexOf(newPhaseValue);
+  var origIdx = PIPELINE_PHASE_LIST.indexOf(currentPipelineOriginalPhase);
   var willBecomeAccepted = newIdx >= acceptIdx && origIdx < acceptIdx && newPhaseValue !== currentPipelineOriginalPhase; // 内定承諾自体、またはそれを飛び越える前進
   var willRevertFromAccepted = origIdx === acceptIdx && newIdx < acceptIdx; // 内定承諾から前のフェーズへ戻す（本当の取り消し）のみ対象
   var decisionDate = new Date().toISOString();
