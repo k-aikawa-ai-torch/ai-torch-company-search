@@ -87,9 +87,10 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .markdown-preview ul,.markdown-preview ol{padding-left:20px;margin:4px 0}
 .markdown-preview li{margin:2px 0}
 .markdown-preview p{margin:4px 0}
-.pipeline-mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-.pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#6B7A99;padding:5px 8px;text-align:left;border-bottom:1px solid #DEE7F7}
-.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #FFFFFF;vertical-align:middle;max-width:0;overflow:hidden}
+.pipeline-table-wrap{overflow-x:auto}
+.pipeline-mini-table{width:100%;min-width:840px;table-layout:fixed;border-collapse:collapse;font-size:12px;margin-top:8px}
+.pipeline-mini-table th{background:#f9f9f7;font-size:10px;font-weight:500;color:#6B7A99;padding:5px 8px;text-align:left;border-bottom:1px solid #DEE7F7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pipeline-mini-table td{padding:5px 8px;border-bottom:1px solid #FFFFFF;vertical-align:middle;overflow:hidden}
 .pipeline-mini-table tr:last-child td{border-bottom:none}
 .pipeline-mini-table td input,.pipeline-mini-table td select{width:100%;height:26px;padding:0 5px;border:1px solid transparent;border-radius:4px;font-size:11.5px;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pipeline-mini-table td input:hover,.pipeline-mini-table td select:hover{border-color:#DEE7F7;background:#fff}
@@ -790,8 +791,18 @@ function renderPipelineTableHtml(pipelines) {
       '</tr>';
   });
   const datalistHtml = '<datalist id="pipeline-mini-company-options">' + ALL_COMPANIES.map(function(c){ return '<option value="' + c.name.replace(/"/g,'&quot;') + '">'; }).join('') + '</datalist>';
+  const colgroupHtml = '<colgroup>' +
+    '<col style="width:15%">' +   // 企業名
+    '<col style="width:19%">' +   // 求人名
+    '<col style="width:11%">' +   // フェーズ
+    '<col style="width:11%">' +   // ステータス
+    '<col style="width:13%">' +   // NextAction日
+    '<col style="width:13%">' +   // アクション内容
+    '<col style="width:12%">' +   // メモ
+    '<col style="width:6%">' +    // アクション（詳細ボタン）
+    '</colgroup>';
   return (pipelines || []).length > 0
-    ? datalistHtml + '<table class="pipeline-mini-table"><thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
+    ? datalistHtml + '<table class="pipeline-mini-table">' + colgroupHtml + '<thead><tr><th>企業名</th><th>求人名</th><th>フェーズ</th><th>ステータス</th><th>NextAction日</th><th>アクション内容</th><th>メモ</th><th></th></tr></thead><tbody>' + pipelineRows + '</tbody></table>'
     : '<div style="color:#aaa;font-size:12px;padding:8px 0">提案求人なし</div>';
 }
 
