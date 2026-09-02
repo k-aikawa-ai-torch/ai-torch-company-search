@@ -1264,6 +1264,22 @@ function initMdEditor(id) {
     mdRerender(el);
     pushUndo(false);
   });
+  // 貼り付け：ブラウザ標準のリッチテキスト貼り付けに任せると独自の.md-line構造が壊れ、
+  // 直後のinputイベントでカーソル位置が特定できず先頭に戻ってしまう。
+  // そのためプレーンテキストとして取り出し、現在のカーソル位置に手動で挿入する。
+  el.addEventListener('paste', function(e) {
+    e.preventDefault();
+    var pasted = (e.clipboardData || window.clipboardData).getData('text/plain');
+    if (!pasted) return;
+    var state = mdGetPlainTextAndCaret(el);
+    var text = state.text, caret = state.caret < 0 ? text.length : state.caret;
+    var newText = text.substring(0, caret) + pasted + text.substring(caret);
+    var newCaret = caret + pasted.length;
+    mdRenderLines(el, newText);
+    mdSetCaret(el, newCaret);
+    pushUndo(true);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   el.addEventListener('keydown', function(e) {
     var isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z');
     var isRedo = (e.ctrlKey || e.metaKey) && ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z')));
