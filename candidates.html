@@ -95,6 +95,8 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .pipeline-mini-table td input,.pipeline-mini-table td select{width:100%;height:26px;padding:0 5px;border:1px solid transparent;border-radius:4px;font-size:11.5px;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pipeline-mini-table td input:hover,.pipeline-mini-table td select:hover{border-color:#DEE7F7;background:#fff}
 .pipeline-mini-table td input:focus,.pipeline-mini-table td select:focus{border-color:#0D40D9;background:#fff;outline:none}
+.pipeline-mini-table tr.pf-ended{opacity:.45}
+.pipeline-mini-table tr.pf-success{background:#FCE9F1}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group.full{grid-column:1/-1}
@@ -764,19 +766,41 @@ function openAdd() {
 // パイプライン簡易テーブル：企業名・求人名・フェーズ・ステータス・NextAction日・アクション内容・メモをその場で直接編集できる
 // （フェーズを「内定承諾」にした場合のみ、決定日等を入力するミニモーダルを挟む。その他の細かい項目（求人URL・推薦日・
 // 　決定日の修正・削除）は従来どおり「詳細」ボタンから開くフルの編集モーダルで行う）
+// 表示順は3段階のグループ分けで固定する：
+//   グループ0（一番上・ピンク表示）：ステータスが「終了_内定承諾」「終了_入社済み」（＝良い結果で終わったもの）
+//   グループ1（通常表示）：ステータスが「進行中」（または未設定）。グループ内は「入社待ち→…→未提案」の
+//                          進行度の高い順（PIPELINE_PHASE_LISTの逆順）で並べる
+//   グループ2（一番下・グレーアウト）：ステータスが「終了_辞退」「終了_不合格」「終了_その他」（＝進行中フェーズの
+//                                      表示に関わらず、常に進行中のものより下に来る）
+// グループ内はいずれもPIPELINE_PHASE_DISPLAY_ORDERの順で並べる
+const PIPELINE_PHASE_DISPLAY_ORDER = PIPELINE_PHASE_LIST.slice().reverse();
+function pipelineGroupRank(status) {
+  if (status === '終了_内定承諾' || status === '終了_入社済み') return 0;
+  if (status === '終了_辞退' || status === '終了_不合格' || status === '終了_その他') return 2;
+  return 1;
+}
 function renderPipelineTableHtml(pipelines) {
   let pipelineRows = '';
-  (pipelines || []).forEach(function(p) {
+  const sortedPipelines = (pipelines || []).slice().sort(function(a, b) {
+    const groupDiff = pipelineGroupRank(a.status) - pipelineGroupRank(b.status);
+    if (groupDiff !== 0) return groupDiff;
+    const ai = PIPELINE_PHASE_DISPLAY_ORDER.indexOf(a.phase);
+    const bi = PIPELINE_PHASE_DISPLAY_ORDER.indexOf(b.phase);
+    return (ai === -1 ? PIPELINE_PHASE_DISPLAY_ORDER.length : ai) - (bi === -1 ? PIPELINE_PHASE_DISPLAY_ORDER.length : bi);
+  });
+  sortedPipelines.forEach(function(p) {
     const jobName = (p.job_name || '').replace(/\n/g, ' ').replace(/"/g,'&quot;');
     const companyName = p.companies ? p.companies.name : '';
     const memo = (p.memo || '').replace(/\n/g, ' ');
+    const groupRank = pipelineGroupRank(p.status);
+    const rowClass = groupRank === 0 ? ' class="pf-success"' : (groupRank === 2 ? ' class="pf-ended"' : '');
     const phaseOpts = '<option value="">未設定</option>' + PIPELINE_PHASE_LIST.map(function(ph) {
       return '<option' + (ph === p.phase ? ' selected' : '') + '>' + ph + '</option>';
     }).join('');
     const statusOpts = '<option value="">未設定</option>' + PIPELINE_STATUS_LIST.map(function(s) {
       return '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>';
     }).join('');
-    pipelineRows += '<tr data-pipeline-id="' + p.id + '">' +
+    pipelineRows += '<tr data-pipeline-id="' + p.id + '"' + rowClass + '>' +
       '<td><input type="text" list="pipeline-mini-company-options" value="' + (companyName||'').replace(/"/g,'&quot;') + '" placeholder="企業名で検索/新規入力" onchange="inlineSavePipelineCompany(\'' + p.id + '\',this.value)"></td>' +
       '<td><div style="display:flex;align-items:center;gap:2px">' +
         '<input type="text" style="flex:1" value="' + jobName + '" onchange="inlineSavePipelineField(\'' + p.id + '\',\'job_name\',this.value)">' +
