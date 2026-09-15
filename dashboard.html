@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI torch ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,sans-serif;background:#FFFFFF;color:#14213D;min-height:100vh}
+#lock-screen{position:fixed;inset:0;background:#14213D;display:flex;align-items:center;justify-content:center;z-index:9999}
+#lock-box{background:#FFFFFF;border-radius:4px;padding:36px 40px;width:320px;text-align:center}
+#lock-box h2{font-size:16px;font-weight:500;margin-bottom:6px}
+#lock-box p{font-size:13px;color:#6B7A99;margin-bottom:20px}
+#lock-box input{width:100%;height:40px;padding:0 14px;border:1px solid #DEE7F7;border-radius:4px;font-size:15px;margin-bottom:10px;background:#fff}
+#lock-box input:focus{outline:none;border-color:#0D40D9}
+#lock-box button{width:100%;height:40px;background:#14213D;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
+#lock-error{color:#0D40D9;font-size:12px;margin-top:8px;min-height:18px}
+#app{display:none}
+.main{max-width:1100px;margin:0 auto;padding:16px}
+.member-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.member-tab{padding:6px 18px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #DEE7F7;color:#6B7A99;background:#fff}
+.member-tab.active{background:#14213D;color:#fff;border-color:#14213D}
+.section-title{font-size:13px;font-weight:500;color:#6B7A99;margin-bottom:10px;margin-top:20px;text-transform:uppercase;letter-spacing:0.05em}
+/* KPIカード */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:8px}
+.kpi-card{background:#fff;border:1px solid #DEE7F7;border-radius:10px;padding:14px 16px}
+.kpi-label{font-size:11px;color:#6B7A99;margin-bottom:6px}
+.kpi-main{display:flex;align-items:baseline;gap:6px}
+.kpi-value{font-size:24px;font-weight:600;color:#14213D}
+.kpi-unit{font-size:12px;color:#6B7A99}
+.kpi-target{font-size:11px;color:#6B7A99;margin-top:4px}
+.kpi-bar-wrap{height:4px;background:#eee;border-radius:2px;margin-top:6px;overflow:hidden}
+.kpi-bar{height:4px;border-radius:2px;transition:width 0.5s}
+.kpi-bar.good{background:#2d6a4f}
+.kpi-bar.warn{background:#e07000}
+.kpi-bar.over{background:#1a7f4e}
+.kpi-rate{font-size:11px;margin-top:3px}
+.kpi-rate.good{color:#2d6a4f}
+.kpi-rate.warn{color:#e07000}
+.kpi-rate.over{color:#1a7f4e}
+/* 新ダッシュボード上部 */
+.sec-header{display:flex;align-items:center;gap:8px;margin:0 0 10px 2px}
+.section-block{border:1px solid #DEE7F7;border-radius:16px;padding:20px;margin-bottom:24px;background:#FAFBFE}
+.section-block .sec-header:first-child{margin-top:0}
+.section-block > *:last-child{margin-bottom:0 !important}
+.sec-header .bar{width:4px;height:16px;border-radius:2px}
+.sec-header .title{font-size:16px;font-weight:500;color:#14213D}
+.sec-header .sub{font-size:11px;color:#9aa3b8}
+.progress-card{background:#fff;border:1px solid #DEE7F7;border-radius:12px;padding:1rem 1.25rem}
+.progress-row{margin-bottom:12px}
+.progress-row:last-child{margin-bottom:0}
+.progress-row-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.progress-row-top .label{color:#6B7A99}
+.progress-row-top .val{font-weight:500;color:#14213D}
+.progress-row-top .val .sub{color:#9aa3b8;font-weight:400}
+.progress-bar-wrap{height:6px;background:#eef1f8;border-radius:3px;overflow:hidden}
+.progress-bar{height:100%;border-radius:3px}
+.hero-card{background:#fff;border:1px solid #DEE7F7;border-radius:16px;padding:1.5rem}
+.hero-label{font-size:12px;color:#6B7A99;margin-bottom:6px}
+.hero-main{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.hero-value{font-family:'Shippori Mincho',serif;font-size:40px;font-weight:700;color:#14213D}
+.hero-sub{font-size:13px;color:#6B7A99}
+.hero-bar-wrap{height:7px;background:#eef1f8;border-radius:4px;overflow:hidden;margin-bottom:14px}
+.hero-bar{height:100%;border-radius:4px;background:#0D40D9}
+.forecast-label{font-size:12px;color:#6B7A99;margin-bottom:6px}
+.forecast-main{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.forecast-value{font-size:20px;font-weight:500;color:#14213D}
+.forecast-bar-wrap{height:5px;background:#eef1f8;border-radius:3px;overflow:hidden;margin-bottom:18px}
+.forecast-bar{height:100%;border-radius:3px;background:#85B7EB}
+.motivation-box{background:#F5F7FC;border-radius:10px;padding:10px 14px;font-size:13px;color:#6B7A99;margin-bottom:16px}
+.month-breakdown{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.month-breakdown-item .m-label{font-size:11px;color:#6B7A99;margin-bottom:4px}
+.month-breakdown-item .m-label .now{color:#0D40D9;margin-left:4px}
+.month-breakdown-item .m-value{font-size:14px;font-weight:500;margin-bottom:6px}
+.month-breakdown-item .m-bar-wrap{height:4px;background:#eef1f8;border-radius:3px;overflow:hidden}
+.month-breakdown-item .m-bar{height:100%;border-radius:3px}
+.ranking-card{background:#fff;border:1px solid #DEE7F7;border-radius:12px;padding:0.25rem 1.25rem}
+.ranking-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.ranking-row:last-child{border-bottom:none}
+.ranking-rank{width:20px;font-size:15px;font-weight:500;color:#14213D}
+.ranking-rank.first{color:#c98500}
+.ranking-photo{width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0}
+.ranking-photo img{width:100%;height:100%;object-fit:cover}
+.ranking-name{flex:1;font-size:14px;color:#14213D}
+.ranking-name.first{font-weight:500}
+.ranking-rate{font-size:14px;font-weight:500;color:#14213D}
+.target-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+.target-table th{font-size:11px;color:#6B7A99;font-weight:500;text-align:left;padding:6px 8px;border-bottom:1px solid #DEE7F7}
+.target-table td{padding:6px 8px;border-bottom:1px solid #f0f0f0}
+.target-table td:first-child{font-size:12px;color:#14213D;white-space:nowrap}
+.target-table input{width:100%;height:30px;padding:0 6px;border:1px solid #DEE7F7;border-radius:4px;font-size:12px}
+/* ファネル */
+.funnel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px}
+.funnel-card{background:#fff;border:1px solid #DEE7F7;border-radius:10px;padding:12px;text-align:center}
+.funnel-num{font-size:22px;font-weight:600;color:#14213D}
+.funnel-target{font-size:11px;color:#6B7A99;margin-top:2px}
+.funnel-label{font-size:11px;color:#6B7A99;margin-top:4px}
+.funnel-bar-wrap{height:3px;background:#eee;border-radius:2px;margin-top:6px;overflow:hidden}
+.funnel-bar{height:3px;border-radius:2px;background:#4a7c59}
+/* 全員比較テーブル */
+.compare-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #DEE7F7;font-size:13px}
+.compare-table th{background:#f9f9f7;font-size:11px;font-weight:500;color:#6B7A99;padding:8px 14px;text-align:center;border-bottom:1px solid #DEE7F7}
+.compare-table th:first-child{text-align:left}
+.compare-table td{padding:10px 14px;border-bottom:1px solid #FFFFFF;text-align:center}
+.compare-table td:first-child{text-align:left;font-weight:500}
+.compare-table tr:last-child td{border-bottom:none}
+.progress-cell{display:flex;flex-direction:column;gap:3px;align-items:center}
+.mini-bar-wrap{width:80px;height:4px;background:#eee;border-radius:2px;overflow:hidden}
+.mini-bar{height:4px;border-radius:2px}
+.mini-bar.good{background:#2d6a4f}
+.mini-bar.warn{background:#e07000}
+.mini-bar.over{background:#1a7f4e}
+/* 目標編集 */
+#target-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+#target-modal.open{display:flex}
+#target-modal-box{background:#fff;border-radius:12px;width:90%;max-width:920px;padding:24px;max-height:85vh;overflow-y:auto}
+.modal-header{font-size:15px;font-weight:500;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6B7A99}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:11px;color:#6B7A99;font-weight:500}
+.form-group input{height:36px;padding:0 10px;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;background:#fff;width:100%}
+.form-group input:focus{outline:none;border-color:#6B7A99}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0}
+.btn-save{padding:0 20px;height:38px;background:#14213D;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+.btn-cancel{padding:0 20px;height:38px;background:#fff;color:#14213D;border:1px solid #DEE7F7;border-radius:8px;font-size:13px;cursor:pointer}
+.save-msg{font-size:12px;color:#2d6a4f;margin-right:auto;align-self:center}
+.edit-target-btn{padding:4px 12px;font-size:12px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;cursor:pointer;color:#555}
+.loading{text-align:center;padding:40px;color:#6B7A99}
+.no-target{background:#fffbf0;border:1px solid #f0e0a0;border-radius:8px;padding:12px 16px;font-size:13px;color:#6B7A99;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+</style>
+<link rel="icon" type="image/x-icon" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/apple-touch-icon.png">
+<link rel="stylesheet" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/shared.css">
+</head>
+<body>
+<div id="lock-screen">
+  <div id="lock-box">
+    <h2>AI torch ダッシュボード</h2>
+    <p>メールアドレスとパスワードでログイン</p>
+    <input type="email" id="email-input" placeholder="メールアドレス">
+    <input type="password" id="pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">ログイン</button>
+    <div id="lock-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <nav class="app-sidebar">
+    <a class="sb-logo" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/index.html"><img src="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/torch-blue-circle.jpg" alt="AI torch"></a>
+    <div class="sb-item" onclick="openGlobalSearch()"><span class="sb-icon">🔍</span><span class="sb-label">検索</span><span class="sb-search-hint">Ctrl+K</span></div>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/index.html"><span class="sb-icon">🏠</span><span class="sb-label">Home</span></a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/companies.html"><span class="sb-icon">🏢</span><span class="sb-label">企業検索</span></a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/candidates.html"><span class="sb-icon">👤</span><span class="sb-label">候補者管理</span></a>
+    <a class="sb-item" href="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/pipeline.html"><span class="sb-icon">🅿️</span><span class="sb-label">パイプライン</span></a>
+    <a class="sb-item active" href="dashboard.html"><span class="sb-icon">🧭</span><span class="sb-label">ダッシュボード</span></a>
+    <a class="sb-item" href="kpi.html"><span class="sb-icon">📊</span><span class="sb-label">詳細KPI</span></a>
+    <a class="sb-item" href="financials.html"><span class="sb-icon">💰</span><span class="sb-label">予実管理</span></a>
+    <div class="sb-spacer"></div>
+    <div class="sb-item" onclick="doLogout()"><span class="sb-icon">🚪</span><span class="sb-label">ログアウト</span></div>
+  </nav>
+  <div class="app-body">
+    <div class="top-strip">
+      <h1 class="brand-serif">AI torch ダッシュボード</h1>
+      <span class="badge" id="header-badge">読み込み中…</span>
+      <div class="month-tabs" id="month-tabs"></div>
+      <select id="month-select" onchange="setMonth(this.value, null)" style="height:32px;padding:0 8px;border:1px solid #DEE7F7;border-radius:6px;background:#fff;font-size:13px;margin-left:8px"></select>
+      <div id="target-btn-area" style="margin-left:auto"></div>
+    </div>
+  <div class="main">
+    <div class="member-tabs">
+      <button class="member-tab active" onclick="setMember('全員',this)">全員</button>
+      <button class="member-tab" onclick="setMember('相川',this)">相川</button>
+      <button class="member-tab" onclick="setMember('永井',this)">永井</button>
+      <button class="member-tab" onclick="setMember('會澤',this)">會澤</button>
+    </div>
+    <div id="dashboard-content"><div class="loading">データを読み込み中…</div></div>
+  </div>
+  </div>
+</div>
+
+<div id="target-modal">
+  <div id="target-modal-box">
+    <div class="modal-header">
+      <span id="target-modal-title">目標を編集</span>
+      <button class="modal-close" onclick="closeTargetModal()">×</button>
+    </div>
+    <div id="target-modal-table"></div>
+    <div class="form-actions">
+      <span class="save-msg" id="target-save-msg"></span>
+      <button class="btn-cancel" onclick="closeTargetModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveTarget()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let MEMBERS = [], SALES_MEMBERS = [];
+let PIPELINE_DATA = [];
+let PHASE_HISTORY = [];
+let CANDIDATE_DATA = [];
+let TARGETS = [];
+let REVENUE_BY_MEMBER = {};
+let MEDIA_FEE_RATES = [];
+let currentMember = '全員';
+let currentMonth = '';
+let editingTargetMemberId = null;
+let targetModalDirty = false;
+let editingTargetMonths = [];
+
+const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
+const MEMBER_NAMES = {'aikawa_kenta':'相川','nagai_yudai':'永井','aizawa_yuma':'會澤'};
+
+const INTERVIEW_PHASES = ['初回面談DONE','求人提案なう','推薦するやでぃ','選考なう','内定','内定承諾'];
+const SELECTION_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定'];
+const OFFER_PHASES = ['内定','内定承諾','入社待ち','入社済み'];
+const ACCEPT_PHASES = ['内定承諾','入社待ち','入社済み'];
+const INTERVIEW_SCHEDULED_PHASES = ['一次面接','二次～面接','最終面接','内定'];
+
+// ===== RA（企業担当者）配分ロジック =====
+// 決定（内定承諾）時点の売上・粗利は、候補者側担当者（CA・pipeline.member_id）に90%、
+// 企業側担当者（RA・companies.member_id）に10%を配分する。CA・RAが同一人物の場合は自動的に100%になる。
+// 進行中（未決定）の見込み金額（revenue_yomi）はまだ決定していないためCA/RAの配分対象にはしない。
+// 例外1：永井がCAの場合は、RAが誰であってもこの10%ルールを適用せず、永井に100%つける。
+// 例外2：このルールは2026年8月の決定分からの適用のため、内定承諾（決定）が2026年7月以前の案件には適用しない
+//        （入社日が2026年8月以降でも、決定＝内定承諾が2026年7月以前なら対象外）。
+const CA_SHARE = 0.9, RA_SHARE = 0.1;
+const RA_RULE_START_YM = '2026-08';
+function getCaMemberId(p) { return p.member_id || null; }
+function getRaMemberId(p) { return p.companies?.member_id || null; }
+function getNagaiMemberId() {
+  const m = MEMBERS.find(x => x.name === 'nagai_yudai');
+  return m ? m.id : null;
+}
+// acceptYm（内定承諾に初到達した年月 'YYYY-MM'）を基準に、このpipelineレコードにRA配分ルールを適用すべきか判定する
+function raSplitApplies(p, acceptYm) {
+  if (!acceptYm || acceptYm < RA_RULE_START_YM) return false; // 2026年8月決定分より前は対象外
+  const nagaiId = getNagaiMemberId();
+  if (nagaiId != null && getCaMemberId(p) === nagaiId) return false; // 永井がCAの案件は対象外
+  return true;
+}
+// targetMemberIdがnullの場合は「全員合計」を意味し、常に満額（100%）を返す
+// acceptYmはそのpipelineが内定承諾に初到達した年月。ルール適用外の場合はCAに100%つける
+function memberWeight(p, targetMemberId, acceptYm) {
+  if (targetMemberId == null) return 1;
+  const caId = getCaMemberId(p);
+  if (!raSplitApplies(p, acceptYm)) {
+    return caId === targetMemberId ? 1 : 0;
+  }
+  const raId = getRaMemberId(p);
+  let w = 0;
+  if (caId === targetMemberId) w += CA_SHARE;
+  if (raId === targetMemberId) w += RA_SHARE;
+  return w;
+}
+
+let CURRENT_USER_EMAIL = null;
+async function doLogin() {
+  const email = document.getElementById('email-input').value;
+  const password = document.getElementById('pw-input').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { document.getElementById('lock-error').textContent = 'メールアドレスまたはパスワードが違います'; return; }
+  CURRENT_USER_EMAIL = email;
+  showApp();
+}
+async function doLogout() { await sb.auth.signOut(); location.reload(); }
+function showApp() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadData();
+}
+sb.auth.getSession().then(({ data: { session } }) => { if (session) { CURRENT_USER_EMAIL = session.user.email; showApp(); } });
+
+function getMonths() {
+  const months = [];
+  const now = new Date();
+  for (let i = -1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = (d.getMonth()+1) + '月';
+    months.push({ key, label });
+  }
+  return months;
+}
+
+async function loadData() {
+  const months = getMonths();
+  currentMonth = months[1].key; // 今月
+  const now = new Date();
+
+  // 月タブ生成
+  const tabsEl = document.getElementById('month-tabs');
+  tabsEl.innerHTML = months.map(m =>
+    '<button class="month-tab' + (m.key === currentMonth ? ' active' : '') + '" onclick="setMonth(\'' + m.key + '\',this)">' + m.label + '</button>'
+  ).join('');
+
+  // 月プルダウン生成（2025年2月〜直近タブの最終月まで、新しい順）
+  const selectEl = document.getElementById('month-select');
+  const allMonths = [];
+  const startD = new Date(2025, 1, 1); // 2025-02
+  const endD = new Date(now.getFullYear(), now.getMonth() + 12, 1); // 1年後まで表示可能にする
+  for (let d = new Date(startD); d <= endD; d.setMonth(d.getMonth() + 1)) {
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    allMonths.push({ key, label: d.getFullYear() + '年' + (d.getMonth()+1) + '月' });
+  }
+  allMonths.reverse();
+  selectEl.innerHTML = '<option value="">他の月を選択…</option>' + allMonths.map(m =>
+    '<option value="' + m.key + '"' + (m.key === currentMonth ? ' selected' : '') + '>' + m.label + '</option>'
+  ).join('');
+
+  // pipelineは1912件あるため全件取得（range指定）
+  async function fetchAllPipeline() {
+    let all = [];
+    let from = 0;
+    const size = 1000;
+    while (true) {
+      const { data, error } = await sb.from('pipeline').select('*,members(name,display_name),companies(member_id)').order('id', { ascending: true }).range(from, from + size - 1);
+      if (error || !data || data.length === 0) break;
+      all = all.concat(data);
+      if (data.length < size) break;
+      from += size;
+    }
+    return all;
+  }
+
+  async function fetchAllPhaseHistory() {
+    let all = [];
+    let from = 0;
+    const size = 1000;
+    while (true) {
+      const { data, error } = await sb.from('pipeline_phase_history').select('*').order('id', { ascending: true }).range(from, from + size - 1);
+      if (error || !data || data.length === 0) break;
+      all = all.concat(data);
+      if (data.length < size) break;
+      from += size;
+    }
+    return all;
+  }
+
+  async function fetchAllCandidates() {
+    let all = [];
+    let from = 0;
+    const size = 1000;
+    while (true) {
+      const { data, error } = await sb.from('candidates').select('*,members(name,display_name)').is('deleted_at', null).order('id', { ascending: true }).range(from, from + size - 1);
+      if (error || !data || data.length === 0) break;
+      all = all.concat(data);
+      if (data.length < size) break;
+      from += size;
+    }
+    return all;
+  }
+
+  const [{ data: members }, candidates, { data: targets }, { data: revenueView }, { data: feeRates }, pipeline, phaseHistory] = await Promise.all([
+    sb.from('members').select('*'),
+    fetchAllCandidates(),
+    sb.from('targets').select('*,members(name,display_name)'),
+    sb.from('revenue_forecast_by_member').select('*'),
+    sb.from('media_fee_rates').select('*'),
+    fetchAllPipeline(),
+    fetchAllPhaseHistory()
+  ]);
+
+  MEMBERS = members || [];
+  SALES_MEMBERS = MEMBERS.filter(m => !!MEMBER_NAMES[m.name]); // アシスタント等、売上を作らないメンバーを集計対象から除外
+  PIPELINE_DATA = pipeline || [];
+  PHASE_HISTORY = phaseHistory || [];
+  CANDIDATE_DATA = candidates || [];
+  TARGETS = targets || [];
+  MEDIA_FEE_RATES = feeRates || [];
+  REVENUE_BY_MEMBER = {};
+  (revenueView || []).forEach(function(r) {
+    REVENUE_BY_MEMBER[r.member_id] = Math.round(r.revenue_forecast_sum || 0);
+  });
+
+  document.getElementById('header-badge').textContent = currentMonth;
+  const me = MEMBERS.find(function(m) { return m.email === CURRENT_USER_EMAIL; });
+  if (me) {
+    const myLabel = Object.keys(MEMBER_MAP).find(function(k) { return MEMBER_MAP[k] === me.name; });
+    if (myLabel) {
+      currentMember = myLabel;
+      document.querySelectorAll('.member-tab').forEach(function(t) {
+        t.classList.toggle('active', t.textContent === myLabel);
+      });
+    }
+  }
+  render();
+}
+
+function setMonth(m, el) {
+  if (!m) return;
+  currentMonth = m;
+  document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+  const sel = document.getElementById('month-select');
+  if (el) {
+    el.classList.add('active');
+    if (sel) sel.value = '';
+  }
+  document.getElementById('header-badge').textContent = m;
+  render();
+}
+
+function setMember(m, el) {
+  currentMember = m;
+  document.querySelectorAll('.member-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function getMonthRange(ym) {
+  const [y, mo] = ym.split('-').map(Number);
+  const start = ym + '-01';
+  const nextY = mo === 12 ? y + 1 : y;
+  const nextMo = mo === 12 ? 1 : mo + 1;
+  const end = nextY + '-' + String(nextMo).padStart(2, '0') + '-01';
+  return { start, end };
+}
+
+// 今年度・来年度の年間目標モーダルを開く基準月（8月始まりの期はgetTermInfoが吸収する）
+function getThisFYRefMonth() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+}
+function getNextFYRefMonth() {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+// 8月始まり・4ヶ月区切りの期を計算する
+function getTermInfo(ym) {
+  const [y, mo] = ym.split('-').map(Number);
+  const fyStartYear = mo >= 8 ? y : y - 1;
+  const monthIndexInFY = (mo - 8 + 12) % 12;
+  const termIndex = Math.floor(monthIndexInFY / 4);
+  const termNames = ['第1期','第2期','第3期'];
+  const termStartOffset = termIndex * 4;
+  const months = [];
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(fyStartYear, 7 + termStartOffset + i, 1);
+    months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const yearMonths = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(fyStartYear, 7 + i, 1);
+    yearMonths.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return {
+    termLabel: termNames[termIndex],
+    termRangeLabel: months[0] + '〜' + months[3],
+    months: months,
+    yearLabel: fyStartYear + '/8〜' + (fyStartYear+1) + '/7',
+    yearMonths: yearMonths
+  };
+}
+
+// そのpipelineが対象フェーズ群に「初めて」到達した日付を、pipeline_idごとに求める
+function firstOccurrenceMap(pipelineItems, phases) {
+  const pipelineIds = new Set(pipelineItems.map(p => p.id));
+  const firstByPipeline = {};
+  PHASE_HISTORY.filter(h => pipelineIds.has(h.pipeline_id) && phases.includes(h.phase)).forEach(h => {
+    if (!firstByPipeline[h.pipeline_id] || h.changed_at < firstByPipeline[h.pipeline_id]) {
+      firstByPipeline[h.pipeline_id] = h.changed_at;
+    }
+  });
+  return firstByPipeline;
+}
+
+// 実績ベースの売上：指定した月群のいずれかで初めて内定承諾以上に到達した候補者のrevenue_forecast合計（候補者単位で重複排除）
+// targetMemberId: null なら全員合計（満額100%）、メンバーidを渡すとCA90%/RA10%で配分した金額を返す
+function sumActualRevenueForMonths(pipelineItems, candidateItems, monthList, targetMemberId = null) {
+  const firstByPipeline = firstOccurrenceMap(pipelineItems, ACCEPT_PHASES);
+  const countedCandidates = new Set();
+  let sum = 0;
+  Object.keys(firstByPipeline).forEach(function(pid) {
+    const ym = firstByPipeline[pid].substring(0,7);
+    if (monthList.indexOf(ym) === -1) return;
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    if (!p || !p.candidate_id || countedCandidates.has(p.candidate_id)) return;
+    countedCandidates.add(p.candidate_id);
+    const w = memberWeight(p, targetMemberId, ym);
+    if (w === 0) return;
+    const c = candidateItems.find(function(x) { return x.id === p.candidate_id; }) || CANDIDATE_DATA.find(function(x) { return x.id === p.candidate_id; });
+    if (c && c.revenue_forecast) sum += c.revenue_forecast * w;
+  });
+  // 入社前辞退などによる返金：出金月がこの期間に含まれる場合、売上をマイナス計上する（CA/RAの配分比率も同様に適用）
+  pipelineItems.forEach(function(p) {
+    if (!p.refund_date || monthList.indexOf(p.refund_date.substring(0,7)) === -1) return;
+    const acceptYm = firstByPipeline[p.id] ? firstByPipeline[p.id].substring(0,7) : null;
+    const w = memberWeight(p, targetMemberId, acceptYm);
+    if (w === 0) return;
+    const c = candidateItems.find(function(x) { return x.id === p.candidate_id; }) || CANDIDATE_DATA.find(function(x) { return x.id === p.candidate_id; });
+    if (c && c.revenue_forecast) sum -= c.revenue_forecast * w;
+  });
+  return sum;
+}
+
+// 承諾数：指定した月群のいずれかで初めて内定承諾以上に到達したpipeline件数（件数のためCA/RA配分は行わない）
+function countAcceptsForMonths(pipelineItems, monthList) {
+  const firstByPipeline = firstOccurrenceMap(pipelineItems, ACCEPT_PHASES);
+  return Object.values(firstByPipeline).filter(function(d) {
+    return monthList.indexOf(d.substring(0,7)) !== -1;
+  }).length;
+}
+
+// 粗利：指定した月群のいずれかで内定承諾（pipeline_phase_history基準、gross_profit_calculated_atには依存しない）を迎えた候補者のgross_profit合計
+// targetMemberId: null なら全員合計（満額100%）、メンバーidを渡すとCA90%/RA10%で配分した金額を返す
+function sumGrossProfitForMonths(pipelineItems, candidateItems, monthList, targetMemberId = null) {
+  const firstByPipeline = firstOccurrenceMap(pipelineItems, ACCEPT_PHASES);
+  const countedCandidates = new Set();
+  let sum = 0;
+  Object.keys(firstByPipeline).forEach(function(pid) {
+    const ym = firstByPipeline[pid].substring(0,7);
+    if (monthList.indexOf(ym) === -1) return;
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    if (!p || !p.candidate_id || countedCandidates.has(p.candidate_id)) return;
+    countedCandidates.add(p.candidate_id);
+    const w = memberWeight(p, targetMemberId, ym);
+    if (w === 0) return;
+    const c = candidateItems.find(function(x) { return x.id === p.candidate_id; }) || CANDIDATE_DATA.find(function(x) { return x.id === p.candidate_id; });
+    if (c && c.gross_profit != null) sum += c.gross_profit * w;
+  });
+  // 入社前辞退などによる返金：出金月がこの期間に含まれる場合、粗利をマイナス計上する（CA/RAの配分比率も同様に適用）
+  pipelineItems.forEach(function(p) {
+    if (!p.refund_date || monthList.indexOf(p.refund_date.substring(0,7)) === -1) return;
+    const acceptYm = firstByPipeline[p.id] ? firstByPipeline[p.id].substring(0,7) : null;
+    const w = memberWeight(p, targetMemberId, acceptYm);
+    if (w === 0) return;
+    const c = candidateItems.find(function(x) { return x.id === p.candidate_id; }) || CANDIDATE_DATA.find(function(x) { return x.id === p.candidate_id; });
+    if (c && c.gross_profit != null) sum -= c.gross_profit * w;
+  });
+  return sum;
+}
+
+const FORECAST_ELIGIBLE_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定'];
+
+// 売上見込み：カジュアル面談以降のフェーズのpipelineがある候補者のrevenue_yomi合計
+// （revenue_yomiは候補者側で 売上見込金額×決定ヨミ% として既に自動計算・保存されている）
+// targetMemberId: null なら全員合計。メンバーidを渡す場合、進行中（未決定）分はCAのみに満額計上し、
+// 内定承諾済み（決定済み）分はCA90%/RA10%で按分する（どの案件で決定するか進行中の時点ではわからないため、RA配分は決定済み分のみに適用）
+function sumForecastRevenue(pipelineItems, candidateItems, monthList, targetMemberId = null) {
+  const inProgressIds = new Set(
+    pipelineItems.filter(function(p) {
+      return p.status === '進行中' && FORECAST_ELIGIBLE_PHASES.includes(p.phase) &&
+        (targetMemberId == null || getCaMemberId(p) === targetMemberId);
+    }).map(function(p) { return p.candidate_id; }).filter(Boolean)
+  );
+  // 内定承諾済みのうち、承諾日が表示期間(monthList)に入っているものだけを確定額として加える
+  const acceptedFirstMap = firstOccurrenceMap(pipelineItems, ACCEPT_PHASES);
+  const acceptedPidByCandidate = {}; // candidate_id -> 内定承諾に到達したpipeline id（CA/RA按分の判定に使う）
+  Object.keys(acceptedFirstMap).forEach(function(pid) {
+    if (monthList.indexOf(acceptedFirstMap[pid].substring(0,7)) === -1) return;
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    if (p && p.candidate_id) acceptedPidByCandidate[p.candidate_id] = pid;
+  });
+  const acceptedIds = new Set(Object.keys(acceptedPidByCandidate));
+  acceptedIds.forEach(function(cid) { inProgressIds.delete(cid); }); // 内定承諾済みは確定額側でカウントするので進行中側からは除く
+  let sum = 0;
+  inProgressIds.forEach(function(cid) {
+    const c = candidateItems.find(function(x) { return x.id === cid; }) || CANDIDATE_DATA.find(function(x) { return x.id === cid; });
+    if (c && c.revenue_yomi) sum += c.revenue_yomi;
+  });
+  acceptedIds.forEach(function(cid) {
+    const c = candidateItems.find(function(x) { return x.id === cid; }) || CANDIDATE_DATA.find(function(x) { return x.id === cid; });
+    if (!c || !c.revenue_forecast) return;
+    const pid = acceptedPidByCandidate[cid];
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    const acceptYm = acceptedFirstMap[pid] ? acceptedFirstMap[pid].substring(0,7) : null;
+    const w = p ? memberWeight(p, targetMemberId, acceptYm) : (targetMemberId == null ? 1 : 0);
+    if (w > 0) sum += c.revenue_forecast * w;
+  });
+  return sum;
+}
+
+// 粗利の着地予測：内定承諾済み（承諾日が表示期間内）は確定粗利、進行中はその時点の媒体手数料率を適用した粗利換算額
+// targetMemberId: null なら全員合計。メンバーidを渡す場合、進行中分はCAのみに満額計上し、確定分はCA90%/RA10%で按分する
+function sumForecastGrossProfit(pipelineItems, candidateItems, monthList, targetMemberId = null) {
+  const inProgressIds = new Set(
+    pipelineItems.filter(function(p) {
+      return p.status === '進行中' && FORECAST_ELIGIBLE_PHASES.includes(p.phase) &&
+        (targetMemberId == null || getCaMemberId(p) === targetMemberId);
+    }).map(function(p) { return p.candidate_id; }).filter(Boolean)
+  );
+  const acceptedFirstMap = firstOccurrenceMap(pipelineItems, ACCEPT_PHASES);
+  const acceptedPidByCandidate = {};
+  Object.keys(acceptedFirstMap).forEach(function(pid) {
+    if (monthList.indexOf(acceptedFirstMap[pid].substring(0,7)) === -1) return;
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    if (p && p.candidate_id) acceptedPidByCandidate[p.candidate_id] = pid;
+  });
+  const acceptedIds = new Set(Object.keys(acceptedPidByCandidate));
+  acceptedIds.forEach(function(cid) { inProgressIds.delete(cid); });
+  let sum = 0;
+  inProgressIds.forEach(function(cid) {
+    const c = candidateItems.find(function(x) { return x.id === cid; }) || CANDIDATE_DATA.find(function(x) { return x.id === cid; });
+    if (c && c.revenue_yomi) {
+      const rate = getCurrentFeeRateForDashboard(c.source);
+      sum += Math.round(c.revenue_yomi * (1 - rate));
+    }
+  });
+  acceptedIds.forEach(function(cid) {
+    const c = candidateItems.find(function(x) { return x.id === cid; }) || CANDIDATE_DATA.find(function(x) { return x.id === cid; });
+    if (!c || c.gross_profit == null) return;
+    const pid = acceptedPidByCandidate[cid];
+    const p = pipelineItems.find(function(x) { return x.id === pid; });
+    const acceptYm = acceptedFirstMap[pid] ? acceptedFirstMap[pid].substring(0,7) : null;
+    const w = p ? memberWeight(p, targetMemberId, acceptYm) : (targetMemberId == null ? 1 : 0);
+    if (w > 0) sum += c.gross_profit * w;
+  });
+  return sum;
+}
+
+function sumTargetsForMonths(memberId, monthList, field) {
+  return monthList.reduce(function(sum, m) {
+    const t = getTarget(memberId, m);
+    return sum + (t && t[field] ? t[field] : 0);
+  }, 0);
+}
+
+function cleanSourceForFee(s) {
+  return (s || '').replace(/^[（(]+/, '').trim();
+}
+function toLocalDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function getCurrentFeeRateForDashboard(source) {
+  const cleaned = cleanSourceForFee(source);
+  const todayStr = toLocalDateStr(new Date());
+  const candidates = MEDIA_FEE_RATES.filter(function(r) { return r.source === cleaned && r.effective_from <= todayStr; });
+  if (!candidates.length) return 0;
+  candidates.sort(function(a,b) { return b.effective_from.localeCompare(a.effective_from); });
+  return candidates[0].fee_rate;
+}
+
+const MOTIVATION_MESSAGES = {
+  low: [
+    'ククク……この程度か。世界線はまだお前を選んでいないようだな。',
+    '収束していない。このままでは選ばれし世界線には辿り着けんぞ。',
+    '機関に嗤われるぞ、この数字では。',
+    'これが運命石の扉の選択か……いや、まだ扉にすら触れていない。'
+  ],
+  mid: [
+    'フン……悪くはないが、まだ道半ばだ。収束にはほど遠い。気を抜くなよ。',
+    '世界線変動率、わずかに動いた。だがこれで満足するな。',
+    '悪くない収束具合だ。だが選ばれし世界線はもっと先にある。',
+    'ダイバージェンスは正常範囲……だが油断すれば逆行するぞ。',
+    'まずまずだ。だがラボメンとして、この程度で満足してはいけない。'
+  ],
+  high: [
+    '収束を確認した。この世界線は、お前が選んだ勝利の世界線だ。',
+    'ふっ……計算通りだ。この調子で運命石の扉をこじ開けろ。',
+    'エル・プサイ・コングルゥ。この波、逃すなよ。',
+    '世界線は既にお前に味方している。このまま突き進め。',
+    '見事だ。これが選ばれし世界線を歩む者の実績というものだ。'
+  ]
+};
+function getMotivationMessage(rate) {
+  const tier = rate >= 0.7 ? 'high' : rate >= 0.3 ? 'mid' : 'low';
+  const pool = MOTIVATION_MESSAGES[tier];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function progressRow(label, actual, target, color, isRev) {
+  const rate = target ? Math.min(actual / target, 1) : 0;
+  const actualStr = isRev ? fmtSalary(actual) : actual + '件';
+  const targetStr = isRev ? fmtSalary(target) : target + '件';
+  return '<div class="progress-row"><div class="progress-row-top"><span class="label">' + label + '</span>' +
+    '<span class="val">' + Math.round(rate*100) + '%<span class="sub"> ' + actualStr + '/' + targetStr + '</span></span></div>' +
+    '<div class="progress-bar-wrap"><div class="progress-bar" style="width:' + (rate*100) + '%;background:' + color + '"></div></div></div>';
+}
+
+function filterByMemberName(items, memberName) {
+  if (!memberName || memberName === '全員') return items;
+  const key = MEMBER_MAP[memberName];
+  return items.filter(i => i.members && i.members.name === key);
+}
+
+function calcActuals(pipelineItems, candidateItems, month, targetMemberId = null) {
+  const { start, end } = getMonthRange(month);
+  const monthCandidates = candidateItems.filter(c => {
+    const d = (c.registered_at || '').substring(0,10);
+    return d >= start && d < end;
+  });
+
+  // 売上見込み：ビューから取得（カジュアル面談以降・決定ヨミ加味）
+  // 金額（売上・粗利）はCA/RA按分のため、常に全社スコープのpipeline/candidatesを渡してtargetMemberIdで按分する
+  const revenueSum = sumForecastRevenue(PIPELINE_DATA, CANDIDATE_DATA, [month], targetMemberId);
+
+  // 粗利：内定承諾日（pipeline_phase_history基準）が当月の候補者のgross_profit合計（返金分の減算も内包）
+  const grossProfitSum = sumGrossProfitForMonths(PIPELINE_DATA, CANDIDATE_DATA, [month], targetMemberId);
+
+  // 面談数：当月登録候補者数
+  const interviews = monthCandidates.length;
+
+  // 推薦数：当月作成のpipelineのうち書類選考以上
+  // 推薦数はpipelineから自動集計せず、targetsテーブルの手入力実績(recommend_actual)を使う
+
+  // 選考数・内定数・承諾数：当月中に該当フェーズへの変更があった件数（pipeline_phase_historyベース）
+  const pipelineIds = new Set(pipelineItems.map(p => p.id));
+  const monthHistory = PHASE_HISTORY.filter(h => {
+    const d = (h.changed_at || '').substring(0,10);
+    return pipelineIds.has(h.pipeline_id) && d >= start && d < end;
+  });
+  function countDistinctByPhases(phases) {
+    return new Set(monthHistory.filter(h => phases.includes(h.phase)).map(h => h.pipeline_id)).size;
+  }
+  // 内定・承諾は複数フェーズにまたがる一度きりの出来事のため、
+  // 「そのpipelineが対象フェーズ群に初めて到達した月」でのみカウントする（月またぎの二重計上を防止）
+  function countFirstOccurrenceByPhases(phases) {
+    const firstByPipeline = {};
+    PHASE_HISTORY.filter(h => pipelineIds.has(h.pipeline_id) && phases.includes(h.phase)).forEach(h => {
+      if (!firstByPipeline[h.pipeline_id] || h.changed_at < firstByPipeline[h.pipeline_id]) {
+        firstByPipeline[h.pipeline_id] = h.changed_at;
+      }
+    });
+    return Object.values(firstByPipeline).filter(d => {
+      const day = (d || '').substring(0,10);
+      return day >= start && day < end;
+    }).length;
+  }
+  const selections = countDistinctByPhases(SELECTION_PHASES);
+  const offers = countFirstOccurrenceByPhases(OFFER_PHASES);
+  const accepts = countFirstOccurrenceByPhases(ACCEPT_PHASES);
+
+  // 進行中フェーズ別
+  const activeByPhase = {};
+  pipelineItems.filter(p => p.status === '進行中').forEach(p => {
+    const ph = p.phase || '未設定';
+    activeByPhase[ph] = (activeByPhase[ph] || 0) + 1;
+  });
+
+  return { revenueSum, grossProfitSum, interviews, selections, offers, accepts, activeByPhase };
+}
+
+// 期・年間など複数月にまたがる実績を合算する
+function calcActualsForMonths(pipelineItems, candidateItems, monthList, targetMemberId = null) {
+  const revenueSum = sumForecastRevenue(PIPELINE_DATA, CANDIDATE_DATA, monthList, targetMemberId);
+  let grossProfitSum = 0, interviews = 0, selections = 0, offers = 0, accepts = 0;
+  monthList.forEach(function(m) {
+    const a = calcActuals(pipelineItems, candidateItems, m, targetMemberId);
+    grossProfitSum += a.grossProfitSum;
+    interviews += a.interviews;
+    selections += a.selections;
+    offers += a.offers;
+    accepts += a.accepts;
+  });
+  return { revenueSum, grossProfitSum, interviews, selections, offers, accepts };
+}
+
+function getTarget(memberId, month) {
+  return TARGETS.find(t => t.member_id === memberId && t.year_month === month) || null;
+}
+
+function barClass(rate) {
+  if (rate >= 1) return 'over';
+  if (rate >= 0.7) return 'good';
+  return 'warn';
+}
+
+function fmtRate(rate) {
+  return Math.round(rate * 100) + '%';
+}
+
+function fmtSalary(v) {
+  if (!v) return '-';
+  return (v/10000).toFixed(0) + '万';
+}
+
+function renderKpiCard(label, actual, target, unit, isRevenue) {
+  const rate = target ? actual / target : null;
+  const pct = rate !== null ? Math.min(rate * 100, 100) : 0;
+  const cls = rate !== null ? barClass(rate) : 'good';
+  const actualStr = isRevenue ? fmtSalary(actual) : actual;
+  const targetStr = isRevenue ? fmtSalary(target) : (target ? target : '-');
+  return '<div class="kpi-card">' +
+    '<div class="kpi-label">' + label + '</div>' +
+    '<div class="kpi-main"><span class="kpi-value">' + actualStr + '</span><span class="kpi-unit">' + unit + '</span></div>' +
+    (target ? '<div class="kpi-target">目標: ' + targetStr + unit + '</div>' : '<div class="kpi-target">目標未設定</div>') +
+    (target ? '<div class="kpi-bar-wrap"><div class="kpi-bar ' + cls + '" style="width:' + pct + '%"></div></div>' : '') +
+    (target ? '<div class="kpi-rate ' + cls + '">' + fmtRate(rate) + '</div>' : '') +
+    '</div>';
+}
+
+// 推薦数：手入力の実績値をKPIカード上で直接編集できるようにする
+function renderRecommendKpiCard(memberId, month, actual, target) {
+  const rate = target ? actual / target : null;
+  const pct = rate !== null ? Math.min(rate * 100, 100) : 0;
+  const cls = rate !== null ? barClass(rate) : 'good';
+  const targetStr = target ? target : '-';
+  return '<div class="kpi-card">' +
+    '<div class="kpi-label">推薦数</div>' +
+    '<div class="kpi-main"><input type="number" id="kpi-recommend-input" value="' + (actual||0) + '" ' +
+      'onchange="saveRecommendActualInline(\'' + memberId + '\',\'' + month + '\')" ' +
+      'style="width:64px;height:28px;padding:0 6px;border:1px solid #DEE7F7;border-radius:4px;font-size:16px;font-weight:500;text-align:right"><span class="kpi-unit">件</span></div>' +
+    (target ? '<div class="kpi-target">目標: ' + targetStr + '件</div>' : '<div class="kpi-target">目標未設定</div>') +
+    (target ? '<div class="kpi-bar-wrap"><div class="kpi-bar ' + cls + '" style="width:' + pct + '%"></div></div>' : '') +
+    (target ? '<div class="kpi-rate ' + cls + '">' + fmtRate(rate) + '</div>' : '') +
+    '</div>';
+}
+
+async function saveRecommendActualInline(memberId, month) {
+  const input = document.getElementById('kpi-recommend-input');
+  const value = input.value ? parseInt(input.value) : null;
+  const existing = TARGETS.find(function(t) { return t.member_id === memberId && t.year_month === month; });
+  const payload = { member_id: memberId, year_month: month, recommend_actual: value, updated_at: new Date().toISOString() };
+  const { error } = await sb.from('targets').upsert(payload, { onConflict: 'member_id,year_month' });
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+  const { data: targets } = await sb.from('targets').select('*,members(name,display_name)');
+  TARGETS = targets || [];
+  render();
+}
+
+function render() {
+  const el = document.getElementById('dashboard-content');
+
+  if (currentMember !== '全員') {
+    // 個人ビュー
+    const memberKey = MEMBER_MAP[currentMember];
+    const member = MEMBERS.find(m => m.name === memberKey);
+    if (!member) { el.innerHTML = '<div class="loading">メンバーが見つかりません</div>'; return; }
+
+    const myPipeline = filterByMemberName(PIPELINE_DATA, currentMember);
+    const myCandidates = filterByMemberName(CANDIDATE_DATA, currentMember);
+    const actuals = calcActuals(myPipeline, myCandidates, currentMonth, member.id);
+    const target = getTarget(member.id, currentMonth);
+    const term = getTermInfo(currentMonth);
+
+    const nicknamesY = member.nickname ? member.nickname.split(',') : [];
+    const pickedNicknameY = nicknamesY.length ? nicknamesY[Math.floor(Math.random() * nicknamesY.length)] : '';
+    const nameWithNick = currentMember + (pickedNicknameY ? '（' + pickedNicknameY + '）' : '');
+
+    // 目標ボタンは右上に配置（期単位の編集ボタンに加え、今年度・来年度の年間一括設定ボタンも並べる）
+    const termBtnHtml = target
+      ? '<button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\')">✏️ ' + term.termLabel + 'の目標を編集</button>'
+      : '<button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + currentMonth + '\')">📋 ' + term.termLabel + 'の目標を設定する</button>';
+    const yearBtnsHtml =
+      '<button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + getThisFYRefMonth() + '\',\'year\')">📅 今年度の年間目標</button>' +
+      '<button class="edit-target-btn" onclick="openTargetModal(\'' + member.id + '\',\'' + getNextFYRefMonth() + '\',\'year\')">📅 来年度の年間目標</button>';
+    document.getElementById('target-btn-area').innerHTML = termBtnHtml + yearBtnsHtml;
+
+    function heroBlock(label, actualRate, actualAmount, targetAmount, forecastRate, forecastAmount, forecastLabel, showMessage, barColor) {
+      const color = barColor || '#0D40D9';
+      let out = '<div class="hero-label">' + label + '達成率（実績ベース）</div>';
+      out += '<div class="hero-main"><span class="hero-value">' + Math.round(actualRate*100) + '%</span><span class="hero-sub">' + fmtSalary(actualAmount) + ' / ' + fmtSalary(targetAmount) + '</span></div>';
+      out += '<div class="hero-bar-wrap"><div class="hero-bar" style="width:' + Math.min(actualRate*100,100) + '%;background:' + color + '"></div></div>';
+      if (showMessage) out += '<div class="motivation-box">' + getMotivationMessage(actualRate) + '</div>';
+      out += '<div class="forecast-label">' + forecastLabel + '</div>';
+      out += '<div class="forecast-main"><span class="forecast-value">' + Math.round(forecastRate*100) + '%</span><span class="hero-sub" style="font-size:12px">' + fmtSalary(forecastAmount) + ' / ' + fmtSalary(targetAmount) + '</span></div>';
+      out += '<div class="forecast-bar-wrap"><div class="forecast-bar" style="width:' + (forecastRate*100) + '%;background:' + color + '"></div></div>';
+      return out;
+    }
+
+    let html = '';
+
+    // ===== 枠1：今期実績 =====
+    html += '<div class="section-block">';
+
+    // --- 今期実績（金額はCA/RA按分のため全社スコープ+member.idで按分） ---
+    const myActualTerm = sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, term.months, member.id);
+    const myTargetTerm = sumTargetsForMonths(member.id, term.months, 'revenue_target');
+    const myForecastTerm = sumForecastRevenue(PIPELINE_DATA, CANDIDATE_DATA, term.months, member.id);
+    const myRate = myTargetTerm ? myActualTerm / myTargetTerm : 0;
+    const myForecastRate = myTargetTerm ? Math.min(myForecastTerm / myTargetTerm, 1) : 0;
+    const myProfitActualTerm = sumGrossProfitForMonths(PIPELINE_DATA, CANDIDATE_DATA, term.months, member.id);
+    const myProfitTargetTerm = sumTargetsForMonths(member.id, term.months, 'gross_profit_target');
+    const myProfitForecastTerm = sumForecastGrossProfit(PIPELINE_DATA, CANDIDATE_DATA, term.months, member.id);
+    const myProfitRateTerm = myProfitTargetTerm ? myProfitActualTerm / myProfitTargetTerm : 0;
+    const myProfitForecastRateTerm = myProfitTargetTerm ? Math.min(myProfitForecastTerm / myProfitTargetTerm, 1) : 0;
+
+    html += '<div class="sec-header"><span class="bar" style="background:#1baf7a"></span><span class="title">' + nameWithNick + 'さんの今期実績</span><span class="sub">' + term.termLabel + '（' + term.termRangeLabel + '）・CA(候補者担当)90%＋RA(企業担当)10%で按分（2026年8月決定分〜／永井CA案件は対象外）</span></div>';
+    html += '<div class="hero-card" style="margin-bottom:16px">';
+    html += heroBlock('売上', myRate, myActualTerm, myTargetTerm, myForecastRate, myForecastTerm, '売上見込み達成率（決定ヨミ含む・進行中案件も加味）', true);
+    html += '<div style="height:1px;background:#f0f0f0;margin:16px 0"></div>';
+    html += heroBlock('粗利', myProfitRateTerm, myProfitActualTerm, myProfitTargetTerm, myProfitForecastRateTerm, myProfitForecastTerm, '粗利見込み達成率（着地予測）', false, '#1baf7a');
+    html += '<div class="month-breakdown">';
+    term.months.forEach(function(m) {
+      const mActual = sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, [m], member.id);
+      const mTarget = sumTargetsForMonths(member.id, [m], 'revenue_target');
+      const mRate = mTarget ? Math.min(mActual/mTarget, 1) : 0;
+      const isNow = m === currentMonth;
+      const label = parseInt(m.substring(5,7)) + '月';
+      html += '<div class="month-breakdown-item"><div class="m-label">' + label + (isNow ? '<span class="now">●進行中</span>' : '') + '</div>' +
+        '<div class="m-value">' + fmtSalary(mActual) + '</div>' +
+        '<div class="m-bar-wrap"><div class="m-bar" style="width:' + (mRate*100) + '%;background:' + (isNow ? '#1baf7a' : '#85B7EB') + '"></div></div></div>';
+    });
+    html += '</div></div>';
+    html += '</div>';
+
+    // ===== 枠2：今月実績 =====
+    html += '<div class="section-block">';
+
+    // --- 今月実績（金額はCA/RA按分のため全社スコープ+member.idで按分） ---
+    const myMonthActual = sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, [currentMonth], member.id);
+    const myMonthTarget = sumTargetsForMonths(member.id, [currentMonth], 'revenue_target');
+    const myMonthForecast = sumForecastRevenue(PIPELINE_DATA, CANDIDATE_DATA, [currentMonth], member.id);
+    const myMonthRate = myMonthTarget ? myMonthActual / myMonthTarget : 0;
+    const myMonthForecastRate = myMonthTarget ? Math.min(myMonthForecast / myMonthTarget, 1) : 0;
+    const myProfitActualMonth = sumGrossProfitForMonths(PIPELINE_DATA, CANDIDATE_DATA, [currentMonth], member.id);
+    const myProfitTargetMonth = sumTargetsForMonths(member.id, [currentMonth], 'gross_profit_target');
+    const myProfitForecastMonth = sumForecastGrossProfit(PIPELINE_DATA, CANDIDATE_DATA, [currentMonth], member.id);
+    const myProfitRateMonth = myProfitTargetMonth ? myProfitActualMonth / myProfitTargetMonth : 0;
+    const myProfitForecastRateMonth = myProfitTargetMonth ? Math.min(myProfitForecastMonth / myProfitTargetMonth, 1) : 0;
+
+    html += '<div class="sec-header"><span class="bar" style="background:#0D40D9"></span><span class="title">' + nameWithNick + 'さんの今月実績</span><span class="sub">' + currentMonth + '・CA(候補者担当)90%＋RA(企業担当)10%で按分（2026年8月決定分〜／永井CA案件は対象外）</span></div>';
+    html += '<div class="hero-card">';
+    html += heroBlock('売上', myMonthRate, myMonthActual, myMonthTarget, myMonthForecastRate, myMonthForecast, '着地予測（決定ヨミ含む・進行中案件も加味）', true);
+    html += '<div style="height:1px;background:#f0f0f0;margin:16px 0"></div>';
+    html += heroBlock('粗利', myProfitRateMonth, myProfitActualMonth, myProfitTargetMonth, myProfitForecastRateMonth, myProfitForecastMonth, '粗利着地予測', false, '#1baf7a');
+    html += '</div>';
+    html += '</div>';
+
+    // ===== 枠3：面接予定・アクション・KPI・フェーズ別 =====
+    html += '<div class="section-block">';
+
+    const scheduledPipeline = myPipeline.filter(function(p) { return p.status === '進行中' && INTERVIEW_SCHEDULED_PHASES.includes(p.phase); });
+    const scheduledCandidateIds = [...new Set(scheduledPipeline.map(function(p) { return p.candidate_id; }).filter(Boolean))];
+    const scheduledCandidates = scheduledCandidateIds.map(function(cid) { return myCandidates.find(function(c) { return c.id === cid; }); }).filter(Boolean);
+
+    html += '<div class="sec-header"><span class="bar" style="background:#4a3aa7"></span><span class="title">今月の面接実施予定</span></div>';
+    html += '<div class="kpi-grid" style="margin-bottom:24px">';
+    html += '<div class="kpi-card"><div class="kpi-label">実施予定件数</div><div class="kpi-main"><span class="kpi-value">' + scheduledPipeline.length + '</span><span class="kpi-unit">件</span></div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">対象人数</div><div class="kpi-main"><span class="kpi-value">' + scheduledCandidates.length + '</span><span class="kpi-unit">名</span></div></div>';
+    html += '</div>';
+
+    // 今月やるべきアクション
+    if (target) {
+      // 月の経過割合（対象月が今月なら実際の経過日数、過去月なら100%、未来月なら0%）
+      const now2 = new Date();
+      const curYm = now2.getFullYear() + '-' + String(now2.getMonth()+1).padStart(2,'0');
+      const [tY, tM] = currentMonth.split('-').map(Number);
+      const daysInMonth = new Date(tY, tM, 0).getDate();
+      let elapsedFraction;
+      if (currentMonth < curYm) elapsedFraction = 1;
+      else if (currentMonth > curYm) elapsedFraction = 0;
+      else elapsedFraction = Math.min(now2.getDate() / daysInMonth, 1);
+
+      // ペース考慮なし（売上・粗利・内定数・承諾数：リードタイムが長く月内の進み具合に左右されにくい）
+      const flatItems = [
+        { label: '売上見込み', actual: actuals.revenueSum, tgt: target.revenue_target },
+        { label: '粗利', actual: actuals.grossProfitSum, tgt: target.gross_profit_target },
+        { label: '内定数', actual: actuals.offers, tgt: target.offer_target },
+        { label: '承諾数', actual: actuals.accepts, tgt: target.accept_target },
+      ].filter(function(x) { return x.tgt; }).map(function(x) {
+        return { label: x.label, rate: x.actual / x.tgt };
+      });
+
+      // ペース考慮あり（面談・推薦・選考：日次で積み上がる活動指標）
+      const funnelDefs = [
+        { label: '面談数', actual: actuals.interviews, tgt: target.interview_target },
+        { label: '推薦数', actual: (target.recommend_actual)||0, tgt: target.recommend_target },
+        { label: '選考数', actual: actuals.selections, tgt: target.first_interview_target },
+      ].filter(function(x) { return x.tgt; });
+      const funnelItems = funnelDefs.map(function(x) {
+        const paceTarget = x.tgt * elapsedFraction;
+        const rate = paceTarget > 0 ? x.actual / paceTarget : (x.actual > 0 ? 1 : 0);
+        return { label: x.label, rate: rate };
+      });
+
+      const triageItems = flatItems.concat(funnelItems);
+      const critical = triageItems.filter(function(x) { return x.rate < 0.5; });
+      const iffy = triageItems.filter(function(x) { return x.rate >= 0.5 && x.rate < 0.9; });
+      const good = triageItems.filter(function(x) { return x.rate >= 0.9; });
+
+      function triageList(items) {
+        if (!items.length) return '<div style="font-size:12px;color:#9aa3b8">該当なし</div>';
+        return items.map(function(x) { return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>' + x.label + '</span><span style="font-weight:500">' + Math.round(x.rate*100) + '%</span></div>'; }).join('');
+      }
+
+      // ボトルネック検出（面談数→推薦数→選考数のうち、ペース比が最も低い項目）
+      let bottleneckHtml = '';
+      if (funnelItems.length) {
+        const worst = funnelItems.reduce(function(a,b) { return b.rate < a.rate ? b : a; });
+        bottleneckHtml = '<div style="background:#FFF5F5;border:1px solid #F5C6C6;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#A32D2D">' +
+          '🎯 <strong>' + worst.label + '</strong>がペースに対して最も遅れています（ペース比 ' + Math.round(worst.rate*100) + '%）</div>';
+      }
+
+      html += '<div class="sec-header"><span class="bar" style="background:#e24b4a"></span><span class="title">今月やるべきアクション</span><span class="sub">' + currentMonth + '・売上/粗利は対目標、活動指標は月内ペース比で判定</span></div>';
+      html += bottleneckHtml;
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">';
+      html += '<div class="progress-card"><div style="font-size:12px;color:#A32D2D;margin-bottom:4px;font-weight:500">🔴 クリティカル（50%未満）</div>' + triageList(critical) + '</div>';
+      html += '<div class="progress-card"><div style="font-size:12px;color:#854F0B;margin-bottom:4px;font-weight:500">🟡 微妙（50〜90%）</div>' + triageList(iffy) + '</div>';
+      html += '<div class="progress-card"><div style="font-size:12px;color:#3B6D11;margin-bottom:4px;font-weight:500">🟢 いい調子（90%以上）</div>' + triageList(good) + '</div>';
+      html += '</div>';
+    }
+
+    // KPI
+    html += '<div class="section-title">KPI（' + currentMonth + '）</div>';
+    html += '<div class="kpi-grid">';
+    html += renderKpiCard('面談数', actuals.interviews, target ? target.interview_target : null, '件', false);
+    html += renderRecommendKpiCard(member.id, currentMonth, (target && target.recommend_actual) || 0, target ? target.recommend_target : null);
+    html += renderKpiCard('選考数', actuals.selections, target ? target.first_interview_target : null, '件', false);
+    html += renderKpiCard('内定数', actuals.offers, target ? target.offer_target : null, '件', false);
+    html += renderKpiCard('承諾数', actuals.accepts, target ? target.accept_target : null, '件', false);
+    html += '</div>';
+
+    // 進行中フェーズ別
+    html += '<div class="section-title">進行中フェーズ別件数</div>';
+    const PHASE_ORDER = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+    html += '<div class="funnel-grid">';
+    PHASE_ORDER.forEach(ph => {
+      const cnt = actuals.activeByPhase[ph] || 0;
+      if (cnt === 0) return;
+      html += '<div class="funnel-card"><div class="funnel-num">' + cnt + '</div><div class="funnel-label">' + ph + '</div></div>';
+    });
+    html += '</div>';
+    html += '</div>';
+
+    el.innerHTML = html;
+
+  } else {
+    // 全員比較ビュー
+    document.getElementById('target-btn-area').innerHTML = '';
+    const term = getTermInfo(currentMonth);
+
+    function periodMetric(monthList) {
+      let actualRevenue=0, targetRevenue=0, actualProfit=0, targetProfit=0, actualAccept=0, targetAccept=0;
+      SALES_MEMBERS.forEach(function(m) {
+        const mPipeline = PIPELINE_DATA.filter(function(p) { return p.members && p.members.name === m.name; });
+        targetRevenue += sumTargetsForMonths(m.id, monthList, 'revenue_target');
+        targetProfit += sumTargetsForMonths(m.id, monthList, 'gross_profit_target');
+        targetAccept += sumTargetsForMonths(m.id, monthList, 'accept_target');
+        // 金額はCA/RA按分のため全社スコープのpipeline/candidatesを渡し、m.idで按分する（3人分を合計すればCA90%+RA10%=100%になり全社合計と一致する）
+        actualRevenue += sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, monthList, m.id);
+        actualProfit += sumGrossProfitForMonths(PIPELINE_DATA, CANDIDATE_DATA, monthList, m.id);
+        actualAccept += countAcceptsForMonths(mPipeline, monthList);
+      });
+      return { actualRevenue, targetRevenue, actualProfit, targetProfit, actualAccept, targetAccept };
+    }
+
+    function renderProgressCard(label, m) {
+      return '<div class="progress-card" style="margin-bottom:24px">' +
+        '<div style="font-size:12px;color:#6B7A99;margin-bottom:10px">' + label + '</div>' +
+        progressRow('売上', m.actualRevenue, m.targetRevenue, '#0D40D9', true) +
+        progressRow('粗利', m.actualProfit, m.targetProfit, '#1baf7a', true) +
+        progressRow('内定承諾数', m.actualAccept, m.targetAccept, '#eb6834', false) +
+        '</div>';
+    }
+
+    function buildRankingData(monthList) {
+      return SALES_MEMBERS.map(function(m) {
+        // 金額はCA/RA按分のため全社スコープのpipeline/candidatesを渡し、m.idで按分する
+        const actual = sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, monthList, m.id);
+        const tgt = sumTargetsForMonths(m.id, monthList, 'revenue_target');
+        const nicks = m.nickname ? m.nickname.split(',') : [];
+        const nick = nicks.length ? nicks[Math.floor(Math.random() * nicks.length)] : '';
+        return { name: MEMBER_NAMES[m.name], nick: nick, actual: actual, rate: tgt ? actual/tgt : 0 };
+      });
+    }
+
+    function renderRankingRows(list, valueFn) {
+      let out = '<div class="ranking-card" style="margin-bottom:24px">';
+      list.forEach(function(r, i) {
+        const isFirst = i === 0;
+        out += '<div class="ranking-row">' +
+          '<span class="ranking-rank' + (isFirst ? ' first' : '') + '">' + (i+1) + '</span>' +
+          (isFirst ? '<span class="ranking-photo"><img src="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/ohagi-1.png" alt=""></span>' : '<span style="width:32px;flex-shrink:0"></span>') +
+          '<span class="ranking-name' + (isFirst ? ' first' : '') + '">' + (r.nick || r.name + 'さん') + '</span>' +
+          '<span class="ranking-rate">' + valueFn(r) + '</span></div>';
+      });
+      out += '</div>';
+      return out;
+    }
+
+    function renderRankingPair(monthList, subLabel) {
+      const data = buildRankingData(monthList);
+      const rateRank = data.slice().sort(function(a,b) { return b.rate - a.rate; });
+      const revenueRank = data.slice().sort(function(a,b) { return b.actual - a.actual; });
+      let out = '<div class="sec-header"><span class="bar" style="background:#eb6834"></span><span class="title">達成率ランキング</span><span class="sub">' + subLabel + '・実績ベース（CA90%＋RA10%按分・2026年8月決定分〜／永井CA案件は対象外）</span></div>';
+      out += renderRankingRows(rateRank, function(r) { return Math.round(r.rate*100) + '%'; });
+      out += '<div class="sec-header"><span class="bar" style="background:#0D40D9"></span><span class="title">売上額ランキング</span><span class="sub">' + subLabel + '・実績ベース（CA90%＋RA10%按分・2026年8月決定分〜／永井CA案件は対象外）</span></div>';
+      out += renderRankingRows(revenueRank, function(r) { return fmtSalary(r.actual); });
+      return out;
+    }
+
+    let html = '';
+
+    // ===== 月間セクション =====
+    html += '<div class="section-block">';
+    html += '<div class="sec-header"><span class="bar" style="background:#4a3aa7"></span><span class="title">月間</span><span class="sub">' + currentMonth + '</span></div>';
+    html += renderProgressCard(currentMonth, periodMetric([currentMonth]));
+
+    html += '<div class="section-title">全員 進行中フェーズ別件数</div>';
+    const FUNNEL_PHASE_RANGE = ['応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾'];
+    const allActive = PIPELINE_DATA.filter(p => p.status === '進行中' && FUNNEL_PHASE_RANGE.includes(p.phase));
+    const allPhase = {};
+    allActive.forEach(p => { const ph = p.phase||'未設定'; allPhase[ph]=(allPhase[ph]||0)+1; });
+    html += '<div class="funnel-grid">';
+    FUNNEL_PHASE_RANGE.forEach(ph => {
+      const cnt = allPhase[ph] || 0;
+      if (cnt === 0) return;
+      html += '<div class="funnel-card"><div class="funnel-num">' + cnt + '</div><div class="funnel-label">' + ph + '</div></div>';
+    });
+    html += '</div>';
+
+    html += renderRankingPair([currentMonth], currentMonth);
+
+    function renderMemberCompareTable(monthList, periodLabel) {
+      let out = '<div class="section-title">メンバー別 売上・KPI比較（' + periodLabel + '）・売上実績/粗利はCA90%＋RA10%で按分（2026年8月決定分〜／永井CA案件は対象外）</div>';
+      out += '<table class="compare-table"><thead><tr><th>担当者</th><th>売上見込み</th><th>売上実績</th><th>粗利</th><th>面談</th><th>推薦</th><th>選考</th><th>内定</th><th>承諾</th></tr></thead><tbody>';
+
+      SALES_MEMBERS.forEach(member => {
+        const myPipeline = PIPELINE_DATA.filter(p => p.members && p.members.name === member.name);
+        const myCandidates = CANDIDATE_DATA.filter(c => c.members && c.members.name === member.name);
+        const actuals = calcActualsForMonths(myPipeline, myCandidates, monthList, member.id);
+        const monthActualRevenue = sumActualRevenueForMonths(PIPELINE_DATA, CANDIDATE_DATA, monthList, member.id);
+        function sumTgt(field) { return sumTargetsForMonths(member.id, monthList, field); }
+        const recommendActualSum = sumTgt('recommend_actual');
+
+        function cell(actual, tgt, isRev) {
+          const rate = tgt ? actual / tgt : null;
+          const pct = rate !== null ? Math.min(rate * 100, 100) : 0;
+          const cls = rate !== null ? barClass(rate) : 'good';
+          const actualStr = isRev ? fmtSalary(actual) : actual;
+          const targetStr = tgt ? (isRev ? fmtSalary(tgt) : tgt) : '-';
+          return '<td><div class="progress-cell"><span>' + actualStr + ' / ' + targetStr + '</span>' +
+            (tgt ? '<div class="mini-bar-wrap"><div class="mini-bar ' + cls + '" style="width:' + pct + '%"></div></div>' : '') +
+            (rate !== null ? '<span style="font-size:10px;color:#6B7A99">' + fmtRate(rate) + '</span>' : '') +
+            '</div></td>';
+        }
+
+        out += '<tr>' +
+          '<td><strong>' + member.display_name + '</strong></td>' +
+          cell(actuals.revenueSum, sumTgt('revenue_target'), true) +
+          cell(monthActualRevenue, sumTgt('revenue_target'), true) +
+          cell(actuals.grossProfitSum, sumTgt('gross_profit_target'), true) +
+          cell(actuals.interviews, sumTgt('interview_target'), false) +
+          cell(recommendActualSum, sumTgt('recommend_target'), false) +
+          cell(actuals.selections, sumTgt('first_interview_target'), false) +
+          cell(actuals.offers, sumTgt('offer_target'), false) +
+          cell(actuals.accepts, sumTgt('accept_target'), false) +
+          '</tr>';
+      });
+
+      out += '</tbody></table>';
+      return out;
+    }
+
+    html += renderMemberCompareTable([currentMonth], currentMonth);
+    html += '</div>';
+
+    // ===== 期セクション =====
+    html += '<div class="section-block">';
+    html += '<div class="sec-header"><span class="bar" style="background:#1baf7a"></span><span class="title">' + term.termLabel + '</span><span class="sub">' + term.termRangeLabel + '</span></div>';
+    html += renderProgressCard(term.termLabel + '（' + term.termRangeLabel + '）', periodMetric(term.months));
+    html += renderRankingPair(term.months, term.termLabel + '（' + term.termRangeLabel + '）');
+    html += renderMemberCompareTable(term.months, term.termLabel + '（' + term.termRangeLabel + '）');
+    html += '</div>';
+
+    // ===== 年間セクション =====
+    html += '<div class="section-block">';
+    html += '<div class="sec-header"><span class="bar" style="background:#0D40D9"></span><span class="title">年間</span><span class="sub">' + term.yearLabel + '</span></div>';
+    html += renderProgressCard(term.yearLabel, periodMetric(term.yearMonths));
+    html += renderRankingPair(term.yearMonths, term.yearLabel);
+    html += renderMemberCompareTable(term.yearMonths, term.yearLabel);
+    html += '</div>';
+
+    el.innerHTML = html;
+  }
+}
+
+// 目標編集モーダル
+const TARGET_FIELDS = [
+  { key: 'revenue_target', label: '売上目標（円）' },
+  { key: 'gross_profit_target', label: '粗利目標（円）' },
+  { key: 'interview_target', label: '面談目標（件）' },
+  { key: 'recommend_target', label: '推薦目標（件）' },
+  { key: 'recommend_actual', label: '推薦実績（件・手入力）' },
+  { key: 'casual_target', label: 'カジュアル面談目標（件）' },
+  { key: 'first_interview_target', label: '一次面接目標（件）' },
+  { key: 'second_interview_target', label: '二次面接目標（件）' },
+  { key: 'final_interview_target', label: '最終面接目標（件）' },
+  { key: 'offer_target', label: '内定目標（件）' },
+  { key: 'accept_target', label: '承諾目標（件）' },
+];
+
+function openTargetModal(memberId, month, mode) {
+  // mode: 'term'（デフォルト・4ヶ月区切りの期単位）| 'year'（12ヶ月・年度単位でまとめて設定）
+  mode = mode || 'term';
+  editingTargetMemberId = memberId;
+  const term = getTermInfo(month);
+  editingTargetMonths = mode === 'year' ? term.yearMonths : term.months;
+  const memberName = MEMBERS.find(m => m.id === memberId)?.display_name || '';
+  const periodLabel = mode === 'year' ? (term.yearLabel + '・年間') : (term.termLabel + '（' + term.termRangeLabel + '）');
+  document.getElementById('target-modal-title').textContent = memberName + ' ' + periodLabel + 'の目標';
+
+  let tableHtml = '<div style="overflow-x:auto"><table class="target-table"><thead><tr><th>項目</th>' +
+    editingTargetMonths.map(m => '<th>' + m + '</th>').join('') + '</tr></thead><tbody>';
+  TARGET_FIELDS.forEach(function(f) {
+    tableHtml += '<tr><td>' + f.label + '</td>';
+    editingTargetMonths.forEach(function(m, i) {
+      const t = TARGETS.find(t => t.member_id === memberId && t.year_month === m) || null;
+      const val = t ? (t[f.key] != null ? t[f.key] : '') : '';
+      tableHtml += '<td><input id="tf-' + f.key + '-' + i + '" type="number" step="' + (f.key === 'accept_target' ? '0.1' : '1') + '" style="width:80px" value="' + val + '"></td>';
+    });
+    tableHtml += '</tr>';
+  });
+  tableHtml += '</tbody></table></div>';
+  document.getElementById('target-modal-table').innerHTML = tableHtml;
+  document.getElementById('target-save-msg').textContent = '';
+  targetModalDirty = false;
+  document.getElementById('target-modal').classList.add('open');
+}
+
+async function saveTarget() {
+  const payloads = editingTargetMonths.map(function(m, i) {
+    const existing = TARGETS.find(t => t.member_id === editingTargetMemberId && t.year_month === m) || {};
+    const payload = { member_id: editingTargetMemberId, year_month: m, updated_at: new Date().toISOString() };
+    TARGET_FIELDS.forEach(function(f) {
+      const raw = document.getElementById('tf-' + f.key + '-' + i).value;
+      // 未入力の項目は既存の値をそのまま維持する（他の項目を消してしまわないように）
+      payload[f.key] = raw ? (f.key === 'accept_target' ? parseFloat(raw) : parseInt(raw)) : (existing[f.key] != null ? existing[f.key] : null);
+    });
+    return payload;
+  });
+
+  const { error } = await sb.from('targets').upsert(payloads, { onConflict: 'member_id,year_month' });
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+
+  document.getElementById('target-save-msg').textContent = '✅ 保存しました';
+  targetModalDirty = false;
+  const { data: targets } = await sb.from('targets').select('*,members(name,display_name)');
+  TARGETS = targets || [];
+  setTimeout(function() { closeTargetModal(); render(); }, 600);
+}
+
+function closeTargetModal() {
+  if (targetModalDirty && !confirm('保存されていない変更があります。保存せずに閉じてよいですか？')) return;
+  document.getElementById('target-modal').classList.remove('open');
+  targetModalDirty = false;
+}
+document.getElementById('target-modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('target-modal')) closeTargetModal();
+});
+document.getElementById('target-modal-table').addEventListener('input', function() { targetModalDirty = true; });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('target-modal').classList.contains('open')) closeTargetModal();
+});
+</script>
+<script src="https://k-aikawa-ai-torch.github.io/ai-torch-company-search/assets/global-search.js"></script>
+</body>
+</html>
