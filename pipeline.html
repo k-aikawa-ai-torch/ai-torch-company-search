@@ -88,11 +88,15 @@ tr:hover td{background:#fafaf8;cursor:pointer}
 .funnel-num{font-size:20px;font-weight:600;color:#14213D}
 .funnel-label{font-size:10px;color:#6B7A99;margin-top:2px}
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+#create-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+#create-modal.open{display:flex}
 #decision-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1100;align-items:center;justify-content:center}
 #decision-modal.open{display:flex}
 #modal.open{display:flex}
 #modal-box{background:#fff;border-radius:12px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
 #modal-box h2{font-size:16px;font-weight:500;margin-bottom:4px}
+#create-modal-box{background:#fff;border-radius:12px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
+#create-modal-box h2{font-size:16px;font-weight:500;margin-bottom:4px}
 .modal-subtitle{font-size:13px;color:#6B7A99;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
 .modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#6B7A99}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
@@ -165,6 +169,7 @@ textarea.modal-edit-input{height:auto;padding:8px}
 
     <div class="funnel-row" id="funnel"></div>
     <div class="filters">
+      <button class="filter-btn off" onclick="openCreateModal()" style="background:#14213D;color:#fff;border-color:#14213D">＋ 新規パイプライン追加</button>
       <input type="text" id="q" placeholder="候補者名・企業名・求人名・アクション内容・メモで検索…" oninput="render()">
       <button class="filter-btn off" id="adv-filter-toggle" onclick="document.getElementById('status-phase-filters').classList.toggle('show')">ステータス/フェーズで絞る ▾</button>
       <select id="view-select" onchange="applySelectedView()" style="height:36px;padding:0 8px;border:1px solid #DEE7F7;border-radius:8px;background:#fff;font-size:13px"><option value="">ビューを選択…</option></select>
@@ -218,6 +223,7 @@ textarea.modal-edit-input{height:auto;padding:8px}
     </div>
     <div class="table-wrap">
       <datalist id="company-options"></datalist>
+      <datalist id="candidate-options"></datalist>
       <table id="pipeline-table">
         <colgroup>
           <col style="width:70px">
@@ -287,6 +293,19 @@ textarea.modal-edit-input{height:auto;padding:8px}
   </div>
 </div>
 
+<div id="create-modal">
+  <div id="create-modal-box">
+    <button class="modal-close" onclick="closeCreateModal()">×</button>
+    <h2>新規パイプライン追加</h2>
+    <div class="modal-subtitle">既存の候補者に、新しい提案求人（パイプライン）を1件追加します。候補者自体の新規登録は候補者管理画面で行ってください。</div>
+    <div class="detail-grid" id="create-modal-content"></div>
+    <div style="margin-top:16px;text-align:right;display:flex;align-items:center;justify-content:flex-end">
+      <span id="create-modal-msg" style="font-size:12px;color:#0D40D9;margin-right:10px"></span>
+      <button id="create-modal-save-btn" style="background:#14213D;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer" onclick="createPipeline()">作成する</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://vqunibhzmvlckqbydgea.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdW5pYmh6bXZsY2txYnlkZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzY0NTYsImV4cCI6MjA5NzgxMjQ1Nn0.t9_RIVPY1vrgGmxxFFYXP9uWxT7401ha4Flc9q0_zMA';
@@ -308,6 +327,7 @@ let DATA = [];
 let currentMember = '全員';
 let ALL_MEMBERS = [];
 let ALL_COMPANIES = [];
+let ALL_CANDIDATES = [];
 let PHASE_HISTORY = [];
 let PIPELINE_VIEWS = [];
 let MEDIA_FEE_RATES = [];
@@ -375,7 +395,7 @@ async function fetchAllRange(table, select) {
 }
 
 async function loadData() {
-  const [data, membersRes, companiesRes, phaseHistory, viewsRes, feeRatesRes] = await Promise.all([
+  const [data, membersRes, companiesRes, phaseHistory, viewsRes, feeRatesRes, candidatesRes] = await Promise.all([
     // pipelineは1000件を超えるため、Supabaseのデフォルト取得上限(1000件)に引っかからないよう
     // fetchAllRangeで.range()ページングして全件取得する（以前はorder('created_at')の単発selectで
     // 1000件しか取れず、ヘッダーの件数表示が実件数より少なくなっていたバグの修正）
@@ -385,6 +405,8 @@ async function loadData() {
     fetchAllRange('pipeline_phase_history', '*'),
     sb.from('pipeline_views').select('*,members!created_by(display_name,name)').order('name'),
     sb.from('media_fee_rates').select('*'),
+    // 新規パイプライン作成時の候補者検索（名前入力補完）用。660名超いるため必要最小限のカラムのみ取得
+    sb.from('candidates').select('id,name,member_id').is('deleted_at', null),
   ]);
   if (!data) {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="loading">読み込み失敗</td></tr>';
@@ -394,6 +416,7 @@ async function loadData() {
   DATA = data.slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
   ALL_MEMBERS = membersRes.data || [];
   ALL_COMPANIES = companiesRes.data || [];
+  ALL_CANDIDATES = candidatesRes.data || [];
   PHASE_HISTORY = phaseHistory || [];
   PIPELINE_VIEWS = viewsRes.data || [];
   MEDIA_FEE_RATES = feeRatesRes.data || [];
@@ -412,6 +435,7 @@ async function loadData() {
   renderViewSelect();
   renderStatusPhaseFilters();
   renderCompanyDatalist();
+  renderCandidateDatalist();
   if (ME && ME.default_pipeline_view_id) {
     const v = PIPELINE_VIEWS.find(function(x) { return x.id === ME.default_pipeline_view_id; });
     if (v) { applyPipelineView(v.filters); }
@@ -925,6 +949,13 @@ function renderCompanyDatalist() {
   dl.innerHTML = ALL_COMPANIES.map(c => '<option value="' + c.name.replace(/"/g,'&quot;') + '">').join('');
 }
 
+// 新規パイプライン作成モーダルの候補者名入力補完用（同姓同名がいる場合は名前だけでは一意にならない点に注意）
+function renderCandidateDatalist() {
+  const dl = document.getElementById('candidate-options');
+  if (!dl) return;
+  dl.innerHTML = ALL_CANDIDATES.map(c => '<option value="' + (c.name||'').replace(/"/g,'&quot;') + '">').join('');
+}
+
 async function inlineSaveCompany(id, name) {
   name = (name || '').trim();
   const p = DATA.find(x => x.id === id);
@@ -1141,6 +1172,8 @@ function openModal(id) {
 }
 document.getElementById('modal-content').addEventListener('input', function() { pipelineModalDirty = true; });
 document.getElementById('modal-content').addEventListener('change', function() { pipelineModalDirty = true; });
+document.getElementById('create-modal-content').addEventListener('input', function() { createModalDirty = true; });
+document.getElementById('create-modal-content').addEventListener('change', function() { createModalDirty = true; });
 
 async function saveModalEdits(id) {
   const p = DATA.find(x => x.id === id);
@@ -1220,9 +1253,144 @@ function closeModal() {
   currentModalId = null;
   pipelineModalDirty = false;
 }
+
+// ===== 新規パイプライン作成 =====
+// 候補者は既存のもの（candidates）から名前検索で選ぶだけで、ここから新規候補者を作ることはできない
+// （候補者自体の新規登録は候補者管理画面の役割のため）
+let createModalDirty = false;
+let createModalCandidateId = null;
+
+function openCreateModal() {
+  createModalCandidateId = null;
+  createModalDirty = false;
+  const phaseOpts = PIPELINE_PHASE_LIST.map(function(ph) {
+    return '<option' + (ph === '未提案' ? ' selected' : '') + '>' + ph + '</option>';
+  }).join('');
+  document.getElementById('create-modal-content').innerHTML =
+    '<div class="detail-item detail-full" style="grid-column:1/-1"><div class="detail-label">候補者名 *</div>' +
+      '<input type="text" list="candidate-options" id="cm-candidate-name" class="modal-edit-input" placeholder="候補者名で検索…" onchange="syncCreateCandidateId()">' +
+      '<div id="cm-candidate-hint" style="font-size:11px;color:#9aa3b8;margin-top:4px"></div>' +
+    '</div>' +
+    '<div class="detail-item detail-full" style="grid-column:1/-1"><div class="detail-label">企業名</div>' +
+      '<input type="text" list="company-options" id="cm-company-name" class="modal-edit-input" placeholder="企業名で検索/新規入力">' +
+    '</div>' +
+    '<div class="detail-item detail-full" style="grid-column:1/-1"><div class="detail-label">求人名 *</div>' +
+      '<input type="text" id="cm-job-name" class="modal-edit-input" placeholder="例：株式会社〇〇 エンジニア">' +
+    '</div>' +
+    '<div class="detail-item"><div class="detail-label">初期フェーズ</div><select id="cm-phase" class="modal-edit-input">' + phaseOpts + '</select></div>' +
+    '<div class="detail-item"><div class="detail-label">NextAction日</div><input type="date" id="cm-next-action-day" class="modal-edit-input"></div>' +
+    '<div class="detail-item detail-full" style="grid-column:1/-1"><div class="detail-label">NextActionの内容</div><input type="text" id="cm-next-action-note" class="modal-edit-input" placeholder="例：面接日程の調整連絡"></div>' +
+    '<div class="detail-item detail-full" style="grid-column:1/-1"><div class="detail-label">メモ</div><textarea id="cm-memo" class="modal-edit-input" rows="3"></textarea></div>';
+  document.getElementById('create-modal-msg').textContent = '';
+  document.getElementById('create-modal').classList.add('open');
+}
+
+// 入力された候補者名から候補者idを解決する。存在しない名前・同姓同名が複数いる場合はヒントを表示するのみで、
+// ここから新規候補者を作成することはしない（候補者の新規登録は候補者管理画面の役割）
+function syncCreateCandidateId() {
+  const name = document.getElementById('cm-candidate-name').value.trim();
+  const hint = document.getElementById('cm-candidate-hint');
+  createModalCandidateId = null;
+  if (!name) { hint.textContent = ''; return; }
+  const matches = ALL_CANDIDATES.filter(function(c) { return c.name === name; });
+  if (!matches.length) {
+    hint.textContent = '⚠ この名前の候補者が見つかりません。先に候補者管理画面で登録してください。';
+    hint.style.color = '#b3261e';
+    return;
+  }
+  if (matches.length > 1) {
+    hint.textContent = '⚠ 同姓同名の候補者が' + matches.length + '名います。候補者管理画面で対象を確認のうえ、そちらから追加することをおすすめします。';
+    hint.style.color = '#b3261e';
+    return; // 一意に決まらないため、あえてcreateModalCandidateIdは設定しない
+  }
+  createModalCandidateId = matches[0].id;
+  hint.textContent = '✓ 候補者が見つかりました';
+  hint.style.color = '#2d6a4f';
+}
+
+async function createPipeline() {
+  const jobName = document.getElementById('cm-job-name').value.trim();
+  const companyName = document.getElementById('cm-company-name').value.trim();
+  const initialPhase = document.getElementById('cm-phase').value;
+  const nextActionDay = document.getElementById('cm-next-action-day').value || null;
+  const nextActionNote = document.getElementById('cm-next-action-note').value.trim() || null;
+  const memo = document.getElementById('cm-memo').value.trim() || null;
+
+  if (!createModalCandidateId) { alert('候補者を正しく選択してください（候補者名を入力すると自動で解決されます）'); return; }
+  if (!jobName) { alert('求人名を入力してください'); return; }
+
+  const candidate = ALL_CANDIDATES.find(function(c) { return c.id === createModalCandidateId; });
+
+  let companyId = null;
+  if (companyName) {
+    let match = ALL_COMPANIES.find(function(c) { return c.name === companyName; });
+    if (!match) {
+      if (!confirm('「' + companyName + '」は企業リストに存在しません。新規企業として登録しますか？')) return;
+      const { data, error } = await sb.from('companies').insert({ name: companyName }).select().single();
+      if (error) { alert('企業の新規登録に失敗しました: ' + error.message); return; }
+      match = data;
+      ALL_COMPANIES.push(match);
+      renderCompanyDatalist();
+    }
+    companyId = match.id;
+  }
+
+  const msg = document.getElementById('create-modal-msg');
+  msg.textContent = '作成中…';
+  const insertPayload = {
+    candidate_id: createModalCandidateId,
+    company_id: companyId,
+    job_name: jobName,
+    member_id: candidate ? candidate.member_id : null, // 提案求人の担当は、候補者本体の担当者を引き継ぐ（システム全体の既存ルールに合わせる）
+    phase: null,
+    next_action_day: nextActionDay,
+    next_action_note: nextActionNote,
+    memo: memo,
+    status: '進行中',
+  };
+  const { data: inserted, error } = await sb.from('pipeline').insert(insertPayload).select('id').single();
+  if (error) { msg.textContent = ''; alert('作成に失敗しました: ' + error.message); return; }
+  const newId = inserted.id;
+
+  // 一覧表示・以降のフェーズ変更処理（inlinePhaseSave等）が期待する形（members/candidates/companiesをネストしたオブジェクト）で
+  // 作成した行を改めて取得し、DATAの先頭に追加する
+  const { data: fullRow, error: fetchError } = await sb.from('pipeline')
+    .select('*, members(display_name,name), candidates(name,source,desired_salary,revenue_forecast,revenue_yomi,decision_yomi,gross_profit,gross_profit_calculated_at,status), companies(name)')
+    .eq('id', newId).single();
+  document.getElementById('create-modal').classList.remove('open');
+  createModalDirty = false;
+  if (fetchError || !fullRow) {
+    alert('作成した行の取得に失敗しました。画面を再読み込みしてください。');
+    await loadData();
+    return;
+  }
+  DATA.unshift(fullRow);
+  document.getElementById('header-count').textContent = DATA.length + '件';
+
+  if (initialPhase) {
+    // 既存のフェーズ変更ロジック（inlinePhaseSave/proceedPhaseSave）をそのまま再利用する。
+    // 「内定承諾」を初期フェーズに選んだ場合は、既存行と同様に決定日入力モーダルが自動で開く。
+    inlinePhaseSave(newId, initialPhase, null);
+  } else {
+    render();
+    renderMonthSummary();
+    renderActionList(true);
+    renderFunnel();
+  }
+}
+
+function closeCreateModal() {
+  if (createModalDirty && !confirm('保存されていない変更があります。保存せずに閉じてよいですか？')) return;
+  document.getElementById('create-modal').classList.remove('open');
+  createModalDirty = false;
+}
+document.getElementById('create-modal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('create-modal')) closeCreateModal();
+});
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   if (document.getElementById('decision-modal').classList.contains('open')) { cancelDecisionModal(); return; }
+  if (document.getElementById('create-modal').classList.contains('open')) { closeCreateModal(); return; }
   if (document.getElementById('modal').classList.contains('open')) { closeModal(); return; }
 });
 document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
