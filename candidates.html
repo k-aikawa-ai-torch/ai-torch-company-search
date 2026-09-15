@@ -435,7 +435,7 @@ const MOTIVATION_LIST = ['高（すぐ動く）','中（いいところがあれ
 function jobTypeArray(c) {
   return (c.job_type || '').split(/[,、]/).map(s => s.trim()).filter(Boolean);
 }
-const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社済み'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_内定承諾','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
 
 async function doLogin() {
@@ -768,7 +768,7 @@ function openAdd() {
 // 　決定日の修正・削除）は従来どおり「詳細」ボタンから開くフルの編集モーダルで行う）
 // 表示順は3段階のグループ分けで固定する：
 //   グループ0（一番上・ピンク表示）：ステータスが「終了_内定承諾」「終了_入社済み」（＝良い結果で終わったもの）
-//   グループ1（通常表示）：ステータスが「進行中」（または未設定）。グループ内は「入社待ち→…→未提案」の
+//   グループ1（通常表示）：ステータスが「進行中」（または未設定）。グループ内は「内定承諾→…→未提案」の
 //                          進行度の高い順（PIPELINE_PHASE_LISTの逆順）で並べる
 //   グループ2（一番下・グレーアウト）：ステータスが「終了_辞退」「終了_不合格」「終了_その他」（＝進行中フェーズの
 //                                      表示に関わらず、常に進行中のものより下に来る）
@@ -891,7 +891,14 @@ function inlinePipelinePhaseSave(pipelineId, newPhase, selectEl) {
     document.getElementById('pipeline-decision-modal').style.display = 'flex';
     return;
   }
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾') {
+  // 【バグ修正】以前は「oldPhaseが内定承諾でnewPhaseが内定承諾以外」という単純な不一致判定だったため、
+  // 内定承諾→入社済みという正常な前進まで「取り消し」と誤認識していた。
+  // PIPELINE_PHASE_LISTの並び順（インデックス）で比較し、「内定承諾より前のフェーズに戻す」場合だけを本当の取り消しとして扱う。
+  const acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
+  const oldIdx = PIPELINE_PHASE_LIST.indexOf(oldPhase);
+  const newIdx = newPhase ? PIPELINE_PHASE_LIST.indexOf(newPhase) : -1;
+  const isRealRevert = oldIdx === acceptIdx && newIdx !== -1 && newIdx < acceptIdx;
+  if (isRealRevert) {
     if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利の記録も削除されますがよろしいですか？')) {
       if (selectEl) selectEl.value = oldPhase || '';
       return;
@@ -935,7 +942,13 @@ async function proceedPipelinePhaseSave(pipelineId, newPhase, oldPhase, decision
   const candidateId = p.candidate_id;
   const c = candidateId ? DATA.find(function(x) { return x.id === candidateId; }) : null;
 
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && candidateId) {
+  // 【バグ修正】inlinePipelinePhaseSave()と同じ理由で、インデックス比較により「内定承諾より前へ戻す」場合だけを取り消しとして扱う
+  const acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
+  const oldIdx = PIPELINE_PHASE_LIST.indexOf(oldPhase);
+  const newIdx = newPhase ? PIPELINE_PHASE_LIST.indexOf(newPhase) : -1;
+  const isRealRevert = oldIdx === acceptIdx && newIdx !== -1 && newIdx < acceptIdx;
+
+  if (isRealRevert && candidateId) {
     const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', pipelineId).eq('phase', '内定承諾');
     if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
     const resetPayload = {
@@ -954,7 +967,7 @@ async function proceedPipelinePhaseSave(pipelineId, newPhase, oldPhase, decision
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   if (hireDateInput) payload.hire_date = hireDateInput;
   if (hireDateInput && !p.payment_date) payload.payment_date = lastDayOfNextMonth(hireDateInput);
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && newPhase !== '入社済み') payload.status = '進行中';
+  if (isRealRevert) payload.status = '進行中';
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
   else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
   const { error } = await sb.from('pipeline').update(payload).eq('id', pipelineId);
@@ -1777,7 +1790,7 @@ function autoSetJoinedStatus() {
   const acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
   const phaseIdx = PIPELINE_PHASE_LIST.indexOf(phase);
   const origIdx = PIPELINE_PHASE_LIST.indexOf(currentPipelineOriginalPhase);
-  const isForwardFromAccept = origIdx === acceptIdx && phaseIdx >= acceptIdx; // 内定承諾→入社待ち/入社済みへの前進
+  const isForwardFromAccept = origIdx === acceptIdx && phaseIdx >= acceptIdx; // 内定承諾→入社済みへの前進
   if (phase === '入社済み') {
     document.getElementById('pf-status').value = '終了_入社済み';
   } else if (phase === '内定承諾') {
@@ -1874,7 +1887,7 @@ async function savePipeline() {
       const { error: acceptHistError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: '内定承諾', changed_at: decisionDate });
       if (acceptHistError) { alert('内定承諾履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + acceptHistError.message); }
     }
-    const finalChangedAt = (hireDateInput && (payload.phase === '入社待ち' || payload.phase === '入社済み'))
+    const finalChangedAt = (hireDateInput && payload.phase === '入社済み')
       ? new Date(hireDateInput + 'T12:00:00').toISOString() : decisionDate;
     const { error: historyError } = await sb.from('pipeline_phase_history').insert({ pipeline_id: savedPipelineId, phase: payload.phase, changed_at: finalChangedAt });
     if (historyError) { alert('フェーズ履歴の記録に失敗しました（ダッシュボードの集計に影響します）: ' + historyError.message); }

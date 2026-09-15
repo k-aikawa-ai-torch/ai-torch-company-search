@@ -294,7 +294,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const PHASE_ORDER = ['返信来た！','初回面談DONE','求人提案なう','推薦するやでぃ','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社済み'];
 const SELECTION_PHASES = ['書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾'];
 const MEMBER_MAP = {'相川':'aikawa_kenta','永井':'nagai_yudai','會澤':'aizawa_yuma'};
 // 候補者フェーズ（候補者ページのものと同じ並び）。推薦人数の集計基準日＝選考なう初到達日を記録するために使用
@@ -319,9 +319,9 @@ let actionListRange = { from: -7, to: 14 };
 let sort1Dir = 1;
 let sort2Dir = 1;
 
-const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社待ち','入社済み'];
+const PIPELINE_PHASE_LIST = ['未提案','提案中','応募承諾','書類選考','カジュアル面談','一次面接','二次～面接','最終面接','内定','内定承諾','入社済み'];
 const PIPELINE_STATUS_LIST = ['進行中','終了_内定承諾','終了_入社済み','終了_辞退','終了_不合格','終了_その他'];
-const ACCEPT_PHASES = ['内定承諾','入社待ち','入社済み'];
+const ACCEPT_PHASES = ['内定承諾','入社済み'];
 const FORECAST_ELIGIBLE_PHASES = ['カジュアル面談','一次面接','二次～面接','最終面接','内定'];
 
 async function doLogin() {
@@ -524,7 +524,7 @@ function getPhaseClass(p) {
   if (['求人提案なう','推薦するやでぃ','応募承諾'].includes(p)) return 'ph-propose';
   if (['書類選考','カジュアル面談','一次面接','二次～面接','最終面接'].includes(p)) return 'ph-selection';
   if (['内定'].includes(p)) return 'ph-offer';
-  if (['内定承諾','入社待ち','入社済み'].includes(p)) return 'ph-joined';
+  if (['内定承諾','入社済み'].includes(p)) return 'ph-joined';
   return 'ph-other';
 }
 
@@ -1028,8 +1028,15 @@ async function confirmDecisionModal() {
 async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoreticalSalaryInput, hireDateInput) {
   const p = DATA.find(x => x.id === id);
   if (!p) return;
+  // 【バグ修正】以前は「oldPhaseが内定承諾でnewPhaseが内定承諾以外」という単純な不一致判定だったため、
+  // 内定承諾→入社済みという正常な前進まで「取り消し」と誤認識していた。
+  // PIPELINE_PHASE_LISTの並び順（インデックス）で比較し、「内定承諾より前のフェーズに戻す」場合だけを本当の取り消しとして扱う。
+  const acceptIdx = PIPELINE_PHASE_LIST.indexOf('内定承諾');
+  const oldIdx = PIPELINE_PHASE_LIST.indexOf(oldPhase);
+  const newIdx = newPhase ? PIPELINE_PHASE_LIST.indexOf(newPhase) : -1;
+  const isRealRevert = oldIdx === acceptIdx && newIdx !== -1 && newIdx < acceptIdx;
   // 内定承諾から他フェーズへ戻した場合、誤登録の取り消しとして決定履歴・粗利等をリセットする
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && p.candidate_id) {
+  if (isRealRevert && p.candidate_id) {
     if (!confirm('内定承諾を取り消します。この決定に紐づく決定日・粗利・フェーズ/ステータスの記録も登録前の状態に戻りますがよろしいですか？')) return;
     const { error: delError } = await sb.from('pipeline_phase_history').delete().eq('pipeline_id', id).eq('phase', '内定承諾');
     if (delError) { alert('決定履歴の削除に失敗しました: ' + delError.message); return; }
@@ -1049,7 +1056,7 @@ async function proceedPhaseSave(id, newPhase, oldPhase, decisionDate, theoretica
   const payload = { phase: newPhase || null, updated_at: new Date().toISOString() };
   if (hireDateInput) payload.hire_date = hireDateInput;
   if (hireDateInput && !p.payment_date) payload.payment_date = lastDayOfNextMonth(hireDateInput);
-  if (oldPhase === '内定承諾' && newPhase !== '内定承諾' && newPhase !== '入社済み') payload.status = '進行中';
+  if (isRealRevert) payload.status = '進行中';
   // 入社済みになったら自動的にステータスも終了_入社済みにする
   if (newPhase === '入社済み') payload.status = '終了_入社済み';
   else if (newPhase === '内定承諾') payload.status = '終了_内定承諾';
