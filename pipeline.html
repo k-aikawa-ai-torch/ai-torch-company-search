@@ -596,7 +596,7 @@ function firstOccurrenceMap(pipelineItems, phases) {
   return map;
 }
 
-function currentMonthKey() { return new Date().toISOString().substring(0,7); }
+function currentMonthKey() { return today().substring(0,7); } // 【バグ修正】UTC基準だと毎月1日0〜9時に前月扱いになっていた
 
 function renderMonthSummary() {
   const el = document.getElementById('month-summary');
