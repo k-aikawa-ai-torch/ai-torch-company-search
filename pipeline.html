@@ -614,7 +614,8 @@ function renderMonthSummary() {
     if (!p || !p.candidate_id || countedCandidates.has(p.candidate_id)) return;
     countedCandidates.add(p.candidate_id);
     if (p.candidates?.revenue_forecast) confirmedRevenue += p.candidates.revenue_forecast;
-    if (p.candidates?.gross_profit != null && p.candidates?.gross_profit_calculated_at?.substring(0,7) === month) confirmedProfit += p.candidates.gross_profit;
+    // 【仕様変更】粗利も売上と同じく内定承諾日の月で計上する（粗利の計算日には依存しない。予実管理・ダッシュボードと統一）
+    if (p.candidates?.gross_profit != null) confirmedProfit += p.candidates.gross_profit;
   });
 
   // 売上見込み：カジュアル面談以降のフェーズがある候補者のrevenue_yomi合計（決定ヨミ反映済み）
